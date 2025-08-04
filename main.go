@@ -100,6 +100,8 @@ func main() {
 				"user":    user,
 			})
 		})
+
+		protected.POST("/activate", handlers.EnqueueDeviceActivation)
 	}
 
 	// Step 9: Start the HTTP server
