@@ -21,7 +21,7 @@ A Go backend server for MQTT motor control with incremental development. This pr
 
 #### ✅ **Device Management (Phase 3)**
 - **Device Models**: Database schema for devices and activation logs
-- **Device Activation**: `POST /api/activate-device` endpoint with queue system
+- **Device Activation**: `POST /api/activate` endpoint with queue system
 - **Asynchronous Processing**: Background goroutine for device control
 - **Quota Management**: Daily usage limits with thread-safe implementation
 - **Device State Management**: ON/OFF state tracking with database persistence

@@ -20,7 +20,7 @@ type DeviceRequest struct {
 
 // Channel used as a request queue (max 100 pending requests)
 var (
-	deviceQueue = make(chan *DeviceRequest, 100)
+	deviceQueue = make(chan *DeviceRequest) // Unbuffered channel: send blocks until another goroutine is ready to receive
 
 	deviceQuotaMutex sync.Mutex      // Mutex for thread-safe quota updates
 	totalUsageTime   time.Duration   // Tracks total usage in current quota window
@@ -87,17 +87,20 @@ func startDeviceProcessor() {
 
 			// Log this activation
 			if err := db.Create(&models.DeviceActivationLog{
-				UserID:   uint(req.UserID),
-				DeviceID: req.DeviceID,
-				Duration: req.Duration,
+				UserID:    uint(req.UserID),
+				DeviceID:  req.DeviceID,
+				Duration:  req.Duration,
+				RequestAt: time.Now(),
 			}).Error; err != nil {
 				log.Printf("[Log] Failed to create activation log for device %d\n", req.DeviceID)
 			} else {
 				log.Printf("[Log] Activation log created for device %d\n", req.DeviceID)
 			}
 
+			log.Printf("[State] Device %d will remain ON for %v\n", req.DeviceID, req.Duration)
+
 			// Keep the device ON for specified duration
-			time.Sleep(req.Duration * time.Minute)
+			time.Sleep(req.Duration)
 
 			// TODO: Publish OFF command to device MQTT broker
 
