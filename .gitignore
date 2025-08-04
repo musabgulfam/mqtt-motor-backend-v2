@@ -1,0 +1,37 @@
+# Build artifacts
+mqtt-motor-backend-v2
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Database files
+data.db
+*.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Test coverage
+coverage.txt
+coverage.html
+
+# Temporary files
+tmp/
+temp/ 
