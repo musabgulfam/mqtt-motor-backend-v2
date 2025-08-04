@@ -43,11 +43,29 @@ func Connect(dbPath string) error {
 	// This ensures our database tables match our Go structs
 	// GORM will create tables, add columns, or modify schema as needed
 	// This is especially useful during development when models change frequently
-	err = DB.AutoMigrate(&models.User{})
+	err = DB.AutoMigrate(
+		&models.User{},
+		&models.DeviceActivationLog{},
+		&models.Device{
+			Name:  "Motor",
+			State: "OFF",
+		},
+		&models.DeviceLog{},
+	)
 	if err != nil {
 		// If migration fails, return the error
 		// This could happen if there are schema conflicts or database issues
 		return err
+	}
+
+	// Now insert initial data (e.g., a default Motor device)
+	var count int64
+	DB.Model(&models.Device{}).Where("name = ?", "Motor").Count(&count)
+	if count == 0 {
+		DB.Create(&models.Device{
+			Name:  "Motor",
+			State: "UNKNOWN",
+		})
 	}
 
 	// Return nil to indicate successful connection and migration

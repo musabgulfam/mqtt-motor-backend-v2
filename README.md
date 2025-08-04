@@ -1,8 +1,8 @@
-# MQTT Motor Backend - User Authentication Complete
+# MQTT Motor Backend - Device Management Complete
 
 A Go backend server for MQTT motor control with incremental development. This project is built step-by-step, with each phase adding new features while maintaining clean, well-documented code.
 
-## 🎯 Current Phase: User Authentication ✅
+## 🎯 Current Phase: Device Management ✅
 
 ### What We've Built
 
@@ -19,59 +19,80 @@ A Go backend server for MQTT motor control with incremental development. This pr
 - **Authentication Middleware**: JWT token validation for protected routes
 - **Environment Configuration**: `.env` file support with comprehensive settings
 
+#### ✅ **Device Management (Phase 3)**
+- **Device Models**: Database schema for devices and activation logs
+- **Device Activation**: `POST /api/activate` endpoint with queue system
+- **Asynchronous Processing**: Background goroutine for device control
+- **Quota Management**: Daily usage limits with thread-safe implementation
+- **Device State Management**: ON/OFF state tracking with database persistence
+
 ## 🗄️ Database Schema (ERD)
 
 ### Current Schema
 
 ```
-┌─────────────────┐
-│      users      │
-├─────────────────┤
-│ id (PK)         │ ← Primary Key (auto-increment)
-│ email (UNIQUE)  │ ← Unique email address
-│ password        │ ← Hashed password (bcrypt)
-│ created_at      │ ← Timestamp when user was created
-│ updated_at      │ ← Timestamp when user was last updated
-│ deleted_at      │ ← Soft delete timestamp (NULL if active)
-└─────────────────┘
+┌─────────────────┐    ┌─────────────────────┐    ┌─────────────────┐
+│      users      │    │      devices        │    │ deviceActivation│
+├─────────────────┤    ├─────────────────────┤    ├─────────────────┤
+│ id (PK)         │    │ id (PK)             │    │ id (PK)         │
+│ email (UNIQUE)  │    │ name                │    │ user_id (FK)    │
+│ password        │    │ state               │    │ device_id       │
+│ created_at      │    │ created_at          │    │ duration        │
+│ updated_at      │    │ updated_at          │    │ created_at      │
+│ deleted_at      │    │ deleted_at          │    └─────────────────┘
+└─────────────────┘    └─────────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                                 ▼
+                        ┌─────────────────┐
+                        │   deviceLogs    │
+                        ├─────────────────┤
+                        │ id (PK)         │
+                        │ user_id (FK)    │
+                        │ device_id       │
+                        │ changed_at      │
+                        │ state           │
+                        │ duration        │
+                        └─────────────────┘
 ```
 
 ### Schema Details
 
-| Field        | Type           | Constraints                    | Description                    |
-|--------------|----------------|--------------------------------|--------------------------------|
-| `id`         | `uint`         | `PRIMARY KEY, AUTO_INCREMENT`  | Unique identifier for each user |
-| `email`      | `varchar(255)` | `UNIQUE, NOT NULL`             | User's email address (unique)  |
-| `password`   | `varchar(255)` | `NOT NULL`                     | Hashed password using bcrypt   |
-| `created_at` | `timestamp`    | `NOT NULL`                     | When the user account was created |
-| `updated_at` | `timestamp`    | `NOT NULL`                     | When the user account was last updated |
-| `deleted_at` | `timestamp`    | `NULL`                         | Soft delete timestamp (NULL = active) |
-
-### Future Schema (Planned)
-
-```
-┌─────────────────┐    ┌─────────────────────┐    ┌─────────────────┐
-│      users      │    │  deviceActivation   │    │   device_data   │
-├─────────────────┤    ├─────────────────────┤    ├─────────────────┤
-│ id (PK)         │◄───│ id (PK)             │    │ id (PK)         │
-│ email (UNIQUE)  │    │ user_id (FK)        │    │ device_id       │
-│ password        │    │ request_at          │    │ state           │
-│ created_at      │    │ duration            │    │ topic           │
-│ updated_at      │    └─────────────────────┘    └─────────────────┘
-│ deleted_at      │                               
-└─────────────────┘                               
-
-Relationships:
-- users → deviceActivation (One-to-Many)
-- users → device_data (One-to-Many)
-```
+| Table | Field | Type | Constraints | Description |
+|-------|-------|------|-------------|-------------|
+| `users` | `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each user |
+| `users` | `email` | `varchar(255)` | `UNIQUE, NOT NULL` | User's email address (unique) |
+| `users` | `password` | `varchar(255)` | `NOT NULL` | Hashed password using bcrypt |
+| `users` | `created_at` | `timestamp` | `NOT NULL` | When the user account was created |
+| `users` | `updated_at` | `timestamp` | `NOT NULL` | When the user account was last updated |
+| `users` | `deleted_at` | `timestamp` | `NULL` | Soft delete timestamp (NULL = active) |
+| `devices` | `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each device |
+| `devices` | `name` | `varchar(255)` | `NOT NULL` | Device name (e.g., "Motor") |
+| `devices` | `state` | `enum` | `NOT NULL, DEFAULT 'UNKNOWN'` | Current state (ON/OFF/UNKNOWN) |
+| `devices` | `created_at` | `timestamp` | `NOT NULL` | When the device was created |
+| `devices` | `updated_at` | `timestamp` | `NOT NULL` | When the device was last updated |
+| `devices` | `deleted_at` | `timestamp` | `NULL` | Soft delete timestamp (NULL = active) |
+| `deviceActivation` | `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each activation |
+| `deviceActivation` | `user_id` | `uint` | `FOREIGN KEY` | User who requested activation |
+| `deviceActivation` | `device_id` | `uint` | `FOREIGN KEY` | Device that was activated |
+| `deviceActivation` | `duration` | `time.Duration` | `NOT NULL` | How long device was active |
+| `deviceActivation` | `created_at` | `timestamp` | `NOT NULL` | When activation was logged |
+| `deviceLogs` | `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each log |
+| `deviceLogs` | `user_id` | `uint` | `FOREIGN KEY` | User who triggered the change |
+| `deviceLogs` | `device_id` | `uint` | `FOREIGN KEY` | Device that changed state |
+| `deviceLogs` | `changed_at` | `timestamp` | `NOT NULL` | When the change occurred |
+| `deviceLogs` | `state` | `varchar(50)` | `NOT NULL` | New state (ON/OFF) |
+| `deviceLogs` | `duration` | `time.Duration` | `NULL` | How long in that state (optional) |
 
 ### Database Features
 
-- **Soft Deletes**: Users are not permanently deleted, just marked as deleted
+- **Soft Deletes**: Users and devices are not permanently deleted, just marked as deleted
 - **Timestamps**: Automatic creation and update timestamps
 - **Password Security**: Passwords are hashed using bcrypt
 - **Email Uniqueness**: Prevents duplicate user accounts
+- **Device State Tracking**: Real-time device state management
+- **Activation Logging**: Comprehensive logging of device activations
 - **GORM Integration**: Automatic schema management and migrations
 
 ### Project Structure
@@ -87,9 +108,13 @@ mqtt-motor-backend-v2/
 ├── database/
 │   └── database.go      # 🗄️  Database connection and setup
 ├── models/
-│   └── user.go          # 👤 User model with password hashing
+│   ├── user.go          # 👤 User model with password hashing
+│   ├── device.go        # 🔧 Device model for motor control
+│   ├── deviceActivation.go # 📊 Device activation logging
+│   └── deviceLog.go     # 📝 Device state change logging
 ├── handlers/
-│   └── user.go          # 🔐 User registration and login handlers
+│   ├── user.go          # 🔐 User registration and login handlers
+│   └── EnqueueDeviceActivation.go # ⚡ Device activation with queue system
 └── middleware/
     └── auth.go          # 🛡️  JWT authentication middleware
 ```
@@ -219,6 +244,32 @@ Response:
 }
 ```
 
+#### Device Activation
+```bash
+POST /api/activate-device
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+
+{
+  "device_id": 1,
+  "duration": 30
+}
+```
+Response:
+```json
+{
+  "status": "Request added to queue"
+}
+```
+
+**Notes:**
+- `device_id`: Integer ID of the device to activate
+- `duration`: Integer representing minutes (will be converted to `duration * time.Minute`)
+- **Asynchronous**: Request is queued and processed in background
+- **Quota Check**: Subject to daily usage limits (1 hour by default)
+- **Queue Protection**: Returns 429 if queue is full (max 100 pending requests)
+- **Database Only**: Currently updates database state (MQTT integration coming in Phase 4)
+
 ## ⚙️ Configuration
 
 Our application uses environment variables for configuration. All variables are optional and have sensible defaults.
@@ -228,7 +279,7 @@ Our application uses environment variables for configuration. All variables are 
 | Variable | Default | Description | Example |
 |----------|---------|-------------|---------|
 | `DB_PATH` | `data.db` | SQLite database file path | `./myapp.db` |
-| `MQTT_BROKER` | `tcp://localhost:1883` | MQTT broker URL | `tcp://broker.example.com:1883` |
+| `MQTT_BROKER` | `tcp://localhost:1883` | MQTT broker URL (for Phase 4) | `tcp://broker.example.com:1883` |
 | `JWT_SECRET` | `supersecret` | Secret for JWT token signing | `my-super-secret-key-123` |
 | `PORT` | `8080` | HTTP server port | `3000` |
 | `DEBUG_MODE` | `true` | Enable debug logging | `false` |
@@ -285,24 +336,32 @@ go run main.go
          ▼
 ┌─────────────────┐
 │   Handlers      │  ← Business logic
-│   (User/MQTT)   │
+│   (User/Device) │
 └─────────────────┘
          │
          ▼
-┌─────────────────┐
-│   SQLite        │  ← File-based database
-│   Database      │
-└─────────────────┘
+┌─────────────────┐    ┌─────────────────┐
+│   SQLite        │    │  Background     │  ← Asynchronous
+│   Database      │    │   Processor     │    device control
+└─────────────────┘    └─────────────────┘
+         │                       │
+         ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐
+│   Device        │    │   MQTT Broker   │  ← Real-time
+│   State         │    │   (Phase 4)     │    communication
+└─────────────────┘    └─────────────────┘
 ```
 
 ### How It Works
 
-1. **Client Request**: A client sends an HTTP request
+1. **Client Request**: A client sends an HTTP request with JWT token
 2. **Gin Router**: Routes the request to appropriate handler
 3. **Middleware**: JWT authentication for protected routes
-4. **Handler Processing**: Business logic (registration, login, etc.)
-5. **Database Operations**: User data storage and retrieval
-6. **Response**: JSON response with appropriate status code
+4. **Handler Processing**: Business logic (device activation, etc.)
+5. **Queue System**: Device requests are queued for background processing
+6. **Background Processing**: Asynchronous device control with quota management
+7. **Database Operations**: Device state and activation logging
+8. **Response**: Immediate JSON response with queue status
 
 ### Key Technologies
 
@@ -312,18 +371,22 @@ go run main.go
 - **JWT**: JSON Web Tokens for authentication
 - **bcrypt**: Secure password hashing
 - **godotenv**: Environment variable management
+- **Goroutines**: Concurrent background processing
+- **Channels**: Thread-safe communication between components
 
 ## 🔄 Next Phases
 
-### Phase 3: MQTT Integration (Coming Next)
+### Phase 4: MQTT Integration (Coming Next)
 - **MQTT Client**: Connection to MQTT broker for device communication
-- **Motor Control**: Endpoints for controlling the motor
-- **Device Communication**: Real-time communication with ESP32 devices
+- **Real-time Control**: Direct MQTT commands to ESP32 devices
+- **Device Communication**: Publish/subscribe for device state updates
+- **Live State Updates**: Real-time device state synchronization
 
-### Phase 4: Advanced Features
-- **Motor Queue**: Queue system for motor activation requests
-- **Daily Quota**: Usage limits and quota enforcement
-- **Device Logging**: Comprehensive logging of device activations
+### Phase 5: Advanced Features
+- **Device Discovery**: Automatic device registration
+- **Real-time Monitoring**: Live device state updates
+- **Advanced Quota**: Per-user and per-device quotas
+- **Device Scheduling**: Time-based device activation
 
 ## 🧪 Development & Testing
 
@@ -360,6 +423,12 @@ curl -X POST http://localhost:8080/login \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"testpass123"}'
 
+# Test device activation (replace TOKEN with actual JWT token)
+curl -X POST http://localhost:8080/api/activate-device \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"device_id": 1, "duration": 30}'
+
 # Test protected endpoint (replace TOKEN with actual JWT token)
 curl -X GET http://localhost:8080/api/profile \
   -H "Authorization: Bearer TOKEN"
@@ -374,6 +443,8 @@ This project emphasizes:
 - **Error Handling**: Proper error handling throughout the application
 - **Security**: Password hashing, JWT authentication, input validation
 - **Configuration Management**: Environment-based configuration
+- **Concurrency**: Thread-safe operations with mutexes and channels
+- **Asynchronous Processing**: Non-blocking API responses with background processing
 
 ## 🔒 Security Features
 
@@ -382,6 +453,8 @@ This project emphasizes:
 - **Input Validation**: Email format and password strength validation
 - **Error Messages**: Generic error messages to prevent information leakage
 - **Protected Routes**: Middleware-based route protection
+- **Quota Enforcement**: Daily usage limits to prevent abuse
+- **Queue Protection**: Prevents system overload with capacity limits
 
 ## 🤝 Contributing
 
@@ -390,6 +463,7 @@ When adding new features:
 2. Add comprehensive comments explaining what and why
 3. Update this README with new features
 4. Test thoroughly before moving to next phase
+5. Ensure thread-safety for concurrent operations
 
 ## 📄 License
 
