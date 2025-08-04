@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -16,6 +17,7 @@ type Config struct {
 	Port       string        // HTTP server port (e.g., "8080")
 	DailyQuota time.Duration // Maximum daily motor usage quota per user (e.g., 1 hour)
 	MaxRetries int           // Maximum number of retry attempts for failed operations
+	DebugMode  bool          // Whether to run in debug mode (default: true for development)
 }
 
 // Load reads configuration from environment variables and returns a Config struct
@@ -50,6 +52,10 @@ func Load() *Config {
 		// Max retries - maximum number of retry attempts for failed operations
 		// Default: 3 attempts (reasonable retry limit)
 		MaxRetries: getIntEnv("MAX_RETRIES", 3),
+
+		// Debug mode - whether to run in debug mode (shows detailed logs, SQL queries, etc.)
+		// Default: true for development, should be false in production
+		DebugMode: getBoolEnv("DEBUG_MODE", true),
 	}
 }
 
@@ -118,6 +124,35 @@ func getIntEnv(key string, defaultValue int) int {
 		}
 		// If parsing fails, we'll fall through to return the default
 		// In a production app, you might want to log this error
+	}
+	// Return the default value if the environment variable doesn't exist or is invalid
+	return defaultValue
+}
+
+// getBoolEnv reads an environment variable and converts it to a boolean
+// This is useful for configuration flags like debug mode, feature toggles, etc.
+// Valid values: "true", "false", "1", "0", "yes", "no" (case insensitive)
+//
+// Parameters:
+//   - key: The name of the environment variable to read
+//   - defaultValue: The default boolean value if the environment variable is invalid or not set
+//
+// Returns:
+//   - The parsed boolean, or the default value if parsing fails
+func getBoolEnv(key string, defaultValue bool) bool {
+	// Try to get the environment variable
+	if value := os.Getenv(key); value != "" {
+		// Convert to lowercase for case-insensitive comparison
+		value = strings.ToLower(value)
+		// Check for true values
+		if value == "true" || value == "1" || value == "yes" {
+			return true
+		}
+		// Check for false values
+		if value == "false" || value == "0" || value == "no" {
+			return false
+		}
+		// If the value is neither true nor false, fall through to default
 	}
 	// Return the default value if the environment variable doesn't exist or is invalid
 	return defaultValue

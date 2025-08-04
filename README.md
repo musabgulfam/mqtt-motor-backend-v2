@@ -1,68 +1,98 @@
-# MQTT Motor Backend - Phase 1: Foundation
+# MQTT Motor Backend - User Authentication Complete
 
 A Go backend server for MQTT motor control with incremental development. This project is built step-by-step, with each phase adding new features while maintaining clean, well-documented code.
 
-## 🎯 Current Phase: Foundation ✅
+## 🎯 Current Phase: User Authentication ✅
 
 ### What We've Built
 
-#### ✅ **Configuration Management**
-- **Purpose**: Centralizes all application settings in one place
-- **How it works**: Reads environment variables with sensible defaults
-- **Benefits**: Easy to configure for different environments (dev, staging, production)
-- **Files**: `config/config.go`
+#### ✅ **Foundation (Phase 1)**
+- **Configuration Management**: Environment variables with sensible defaults
+- **Database Connection**: SQLite with GORM ORM
+- **HTTP Server**: Gin framework with health endpoint
+- **Project Structure**: Clean, modular architecture
 
-#### ✅ **Database Connection**
-- **Purpose**: Provides persistent storage for users, device data, and logs
-- **Technology**: SQLite with GORM ORM for easy database operations
-- **Benefits**: Lightweight, file-based, no separate server needed
-- **Files**: `database/database.go`
+#### ✅ **User Authentication (Phase 2)**
+- **User Model**: Database schema with password hashing
+- **Registration**: `POST /register` endpoint with validation
+- **Login**: `POST /login` endpoint with JWT token generation
+- **Authentication Middleware**: JWT token validation for protected routes
+- **Environment Configuration**: `.env` file support with comprehensive settings
 
-#### ✅ **HTTP Server**
-- **Purpose**: Provides REST API endpoints for client applications
-- **Framework**: Gin (high-performance Go web framework)
-- **Features**: Built-in logging, error recovery, JSON handling
-- **Files**: `main.go`
+## 🗄️ Database Schema (ERD)
 
-#### ✅ **Health Check Endpoint**
-- **Purpose**: Allows monitoring systems to verify the server is running
-- **Endpoint**: `GET /health`
-- **Response**: JSON with status and message
-- **Use cases**: Load balancers, monitoring tools, client health checks
+### Current Schema
 
-### Project Structure Explained
+```
+┌─────────────────┐
+│      users      │
+├─────────────────┤
+│ id (PK)         │ ← Primary Key (auto-increment)
+│ email (UNIQUE)  │ ← Unique email address
+│ password        │ ← Hashed password (bcrypt)
+│ created_at      │ ← Timestamp when user was created
+│ updated_at      │ ← Timestamp when user was last updated
+│ deleted_at      │ ← Soft delete timestamp (NULL if active)
+└─────────────────┘
+```
 
+### Schema Details
+
+| Field        | Type           | Constraints                    | Description                    |
+|--------------|----------------|--------------------------------|--------------------------------|
+| `id`         | `uint`         | `PRIMARY KEY, AUTO_INCREMENT`  | Unique identifier for each user |
+| `email`      | `varchar(255)` | `UNIQUE, NOT NULL`             | User's email address (unique)  |
+| `password`   | `varchar(255)` | `NOT NULL`                     | Hashed password using bcrypt   |
+| `created_at` | `timestamp`    | `NOT NULL`                     | When the user account was created |
+| `updated_at` | `timestamp`    | `NOT NULL`                     | When the user account was last updated |
+| `deleted_at` | `timestamp`    | `NULL`                         | Soft delete timestamp (NULL = active) |
+
+### Future Schema (Planned)
+
+```
+┌─────────────────┐    ┌─────────────────────┐    ┌─────────────────┐
+│      users      │    │  deviceActivation   │    │   device_data   │
+├─────────────────┤    ├─────────────────────┤    ├─────────────────┤
+│ id (PK)         │◄───│ id (PK)             │    │ id (PK)         │
+│ email (UNIQUE)  │    │ user_id (FK)        │    │ device_id       │
+│ password        │    │ request_at          │    │ state           │
+│ created_at      │    │ duration            │    │ topic           │
+│ updated_at      │    └─────────────────────┘    └─────────────────┘
+│ deleted_at      │                               
+└─────────────────┘                               
+
+Relationships:
+- users → deviceActivation (One-to-Many)
+- users → device_data (One-to-Many)
+```
+
+### Database Features
+
+- **Soft Deletes**: Users are not permanently deleted, just marked as deleted
+- **Timestamps**: Automatic creation and update timestamps
+- **Password Security**: Passwords are hashed using bcrypt
+- **Email Uniqueness**: Prevents duplicate user accounts
+- **GORM Integration**: Automatic schema management and migrations
+
+### Project Structure
 ```
 mqtt-motor-backend-v2/
-├── main.go              # 🚀 Application entry point - orchestrates everything
-├── go.mod               # 📦 Go module dependencies and versions
+├── main.go              # 🚀 Application entry point with routes
+├── go.mod               # 📦 Go module dependencies
+├── .env                 # ⚙️  Environment variables (configurable)
+├── .env.example         # 📋 Example environment variables
+├── .gitignore           # 🚫 Git ignore rules
 ├── config/
-│   └── config.go        # ⚙️  Configuration management - environment variables
-└── database/
-    └── database.go      # 🗄️  Database connection and setup
+│   └── config.go        # ⚙️  Configuration management
+├── database/
+│   └── database.go      # 🗄️  Database connection and setup
+├── models/
+│   └── user.go          # 👤 User model with password hashing
+├── handlers/
+│   └── user.go          # 🔐 User registration and login handlers
+└── middleware/
+    └── auth.go          # 🛡️  JWT authentication middleware
 ```
-
-#### **File Descriptions:**
-
-- **`main.go`**: The heart of our application. It:
-  - Loads configuration from environment variables
-  - Establishes database connection
-  - Sets up HTTP server with Gin framework
-  - Defines API endpoints
-  - Starts listening for requests
-
-- **`config/config.go`**: Manages all application settings:
-  - Database path (where SQLite file is stored)
-  - MQTT broker URL (for device communication)
-  - JWT secret (for user authentication)
-  - Server port (HTTP listening port)
-  - Daily quotas (usage limits)
-
-- **`database/database.go`**: Handles database operations:
-  - Connects to SQLite database
-  - Sets up GORM ORM for easy data operations
-  - Provides global database access
-  - Will handle schema migrations in future phases
 
 ## 🚀 Installation & Setup
 
@@ -83,7 +113,16 @@ cd mqtt-motor-backend-v2
 go mod tidy
 ```
 
-#### 3. Run the Server
+#### 3. Configure Environment (Optional)
+```bash
+# Copy the example .env file and modify as needed
+cp .env.example .env
+
+# Edit the .env file with your specific values
+nano .env
+```
+
+#### 4. Run the Server
 ```bash
 # Start the development server
 go run main.go
@@ -91,22 +130,92 @@ go run main.go
 
 You should see output like:
 ```
-2025/08/04 11:30:33 Starting MQTT Motor Backend on port 8080
-2025/08/04 11:30:33 Database connected successfully
+2025/08/04 11:57:58 Starting MQTT Motor Backend on port 8080
+2025/08/04 11:57:58 Database connected successfully
+2025/08/04 11:57:58 Running in debug mode
 [GIN-debug] Listening and serving HTTP on :8080
 ```
 
-#### 4. Test the Health Endpoint
-```bash
-# Test that the server is running
-curl http://localhost:8080/health
-```
+## 🔐 API Endpoints
 
-Expected response:
+### Public Endpoints (No Authentication Required)
+
+#### Health Check
+```bash
+GET /health
+```
+Response:
 ```json
 {
   "status": "ok",
   "message": "MQTT Motor Backend is running"
+}
+```
+
+#### User Registration
+```bash
+POST /register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "securepassword123"
+}
+```
+Response:
+```json
+{
+  "message": "User registered successfully",
+  "user": {
+    "id": 1,
+    "email": "user@example.com",
+    "created_at": "2025-08-04T11:57:58.418603+05:00",
+    "updated_at": "2025-08-04T11:57:58.418603+05:00"
+  }
+}
+```
+
+#### User Login
+```bash
+POST /login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "securepassword123"
+}
+```
+Response:
+```json
+{
+  "message": "Login successful",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 1,
+    "email": "user@example.com",
+    "created_at": "2025-08-04T11:57:58.418603+05:00",
+    "updated_at": "2025-08-04T11:57:58.418603+05:00"
+  }
+}
+```
+
+### Protected Endpoints (Authentication Required)
+
+#### User Profile
+```bash
+GET /api/profile
+Authorization: Bearer <JWT_TOKEN>
+```
+Response:
+```json
+{
+  "message": "Protected endpoint accessed successfully",
+  "user": {
+    "id": 1,
+    "email": "user@example.com",
+    "created_at": "2025-08-04T11:57:58.418603+05:00",
+    "updated_at": "2025-08-04T11:57:58.418603+05:00"
+  }
 }
 ```
 
@@ -122,27 +231,31 @@ Our application uses environment variables for configuration. All variables are 
 | `MQTT_BROKER` | `tcp://localhost:1883` | MQTT broker URL | `tcp://broker.example.com:1883` |
 | `JWT_SECRET` | `supersecret` | Secret for JWT token signing | `my-super-secret-key-123` |
 | `PORT` | `8080` | HTTP server port | `3000` |
+| `DEBUG_MODE` | `true` | Enable debug logging | `false` |
 | `DAILY_QUOTA` | `1h` | Daily motor usage limit | `2h30m` |
+| `MAX_RETRIES` | `3` | Maximum retry attempts | `5` |
 
 ### Setting Environment Variables
 
-#### macOS/Linux
+#### Using .env File (Recommended)
 ```bash
-# Set variables for current session
+# Edit the .env file
+nano .env
+
+# Set your values
+DB_PATH=./myapp.db
+PORT=3000
+JWT_SECRET=my-secret-key
+DEBUG_MODE=false
+```
+
+#### Using System Environment Variables
+```bash
+# macOS/Linux
 export DB_PATH="./myapp.db"
 export PORT="3000"
 export JWT_SECRET="my-secret-key"
-
-# Run the application
-go run main.go
-```
-
-#### Windows
-```cmd
-# Set variables for current session
-set DB_PATH=./myapp.db
-set PORT=3000
-set JWT_SECRET=my-secret-key
+export DEBUG_MODE="false"
 
 # Run the application
 go run main.go
@@ -150,7 +263,7 @@ go run main.go
 
 ## 🏗️ Architecture Overview
 
-### Current Architecture (Phase 1)
+### Current Architecture
 ```
 ┌─────────────────┐
 │   Client App    │  ← HTTP requests (REST API)
@@ -165,6 +278,18 @@ go run main.go
          │
          ▼
 ┌─────────────────┐
+│   Middleware    │  ← JWT authentication
+│   (Auth)        │
+└─────────────────┘
+         │
+         ▼
+┌─────────────────┐
+│   Handlers      │  ← Business logic
+│   (User/MQTT)   │
+└─────────────────┘
+         │
+         ▼
+┌─────────────────┐
 │   SQLite        │  ← File-based database
 │   Database      │
 └─────────────────┘
@@ -172,28 +297,25 @@ go run main.go
 
 ### How It Works
 
-1. **Client Request**: A client (web app, mobile app, etc.) sends an HTTP request
-2. **Gin Router**: Our Gin server receives the request and routes it to the appropriate handler
-3. **Handler Processing**: The handler processes the request (currently just health check)
-4. **Database Operations**: When needed, handlers interact with the SQLite database
-5. **Response**: The server sends back a JSON response to the client
+1. **Client Request**: A client sends an HTTP request
+2. **Gin Router**: Routes the request to appropriate handler
+3. **Middleware**: JWT authentication for protected routes
+4. **Handler Processing**: Business logic (registration, login, etc.)
+5. **Database Operations**: User data storage and retrieval
+6. **Response**: JSON response with appropriate status code
 
 ### Key Technologies
 
 - **Gin**: High-performance HTTP web framework for Go
 - **GORM**: Object-Relational Mapping for database operations
 - **SQLite**: Lightweight, file-based database
-- **Go Modules**: Dependency management
+- **JWT**: JSON Web Tokens for authentication
+- **bcrypt**: Secure password hashing
+- **godotenv**: Environment variable management
 
 ## 🔄 Next Phases
 
-### Phase 2: User Management (Coming Next)
-- **User Model**: Database schema for storing user information
-- **Registration**: Endpoint for creating new user accounts
-- **Login**: Authentication with JWT tokens
-- **Middleware**: Authentication middleware for protected endpoints
-
-### Phase 3: MQTT Integration
+### Phase 3: MQTT Integration (Coming Next)
 - **MQTT Client**: Connection to MQTT broker for device communication
 - **Motor Control**: Endpoints for controlling the motor
 - **Device Communication**: Real-time communication with ESP32 devices
@@ -223,6 +345,26 @@ go fmt ./...
 go vet ./...
 ```
 
+### Testing the API
+```bash
+# Test health endpoint
+curl http://localhost:8080/health
+
+# Test user registration
+curl -X POST http://localhost:8080/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"testpass123"}'
+
+# Test user login
+curl -X POST http://localhost:8080/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"testpass123"}'
+
+# Test protected endpoint (replace TOKEN with actual JWT token)
+curl -X GET http://localhost:8080/api/profile \
+  -H "Authorization: Bearer TOKEN"
+```
+
 ## 📝 Code Quality
 
 This project emphasizes:
@@ -230,7 +372,16 @@ This project emphasizes:
 - **Clean Architecture**: Separation of concerns with clear module boundaries
 - **Incremental Development**: Building features step by step
 - **Error Handling**: Proper error handling throughout the application
+- **Security**: Password hashing, JWT authentication, input validation
 - **Configuration Management**: Environment-based configuration
+
+## 🔒 Security Features
+
+- **Password Hashing**: bcrypt for secure password storage
+- **JWT Authentication**: Stateless authentication with tokens
+- **Input Validation**: Email format and password strength validation
+- **Error Messages**: Generic error messages to prevent information leakage
+- **Protected Routes**: Middleware-based route protection
 
 ## 🤝 Contributing
 

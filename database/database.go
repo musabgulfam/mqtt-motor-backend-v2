@@ -1,6 +1,8 @@
 package database
 
 import (
+	"mqtt-motor-backend/models"
+
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -15,7 +17,8 @@ var DB *gorm.DB
 // 1. Opening a connection to the SQLite database file
 // 2. Setting up GORM (Go Object Relational Mapper) for database operations
 // 3. Creating the database file if it doesn't exist
-// 4. Making the connection available to other parts of the application
+// 4. Auto-migrating the database schema based on our models
+// 5. Making the connection available to other parts of the application
 //
 // Parameters:
 //   - dbPath: The path to the SQLite database file (e.g., "data.db")
@@ -36,12 +39,18 @@ func Connect(dbPath string) error {
 		return err
 	}
 
-	// Note: Auto-migration will be added when we create models in Phase 2
-	// Auto-migration automatically creates database tables based on our Go structs
-	// This ensures our database schema matches our application models
-	// Example: err = DB.AutoMigrate(&models.User{}, &models.DeviceActivation{})
+	// Auto-migrate the database schema based on our models
+	// This ensures our database tables match our Go structs
+	// GORM will create tables, add columns, or modify schema as needed
+	// This is especially useful during development when models change frequently
+	err = DB.AutoMigrate(&models.User{})
+	if err != nil {
+		// If migration fails, return the error
+		// This could happen if there are schema conflicts or database issues
+		return err
+	}
 
-	// Return nil to indicate successful connection
+	// Return nil to indicate successful connection and migration
 	return nil
 }
 
