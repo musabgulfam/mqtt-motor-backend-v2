@@ -85,6 +85,19 @@ func startDeviceProcessor() {
 
 			log.Printf("[State] Device %d turned ON\n", req.DeviceID)
 
+			// Log ON state change
+			if err := db.Create(&models.DeviceLog{
+				UserID:    uint(req.UserID),
+				DeviceID:  uint(req.DeviceID),
+				ChangedAt: time.Now(),
+				State:     "ON",
+				Duration:  &req.Duration, // Will be set when device turns OFF
+			}).Error; err != nil {
+				log.Printf("[Log] Failed to create ON log for device %d\n", req.DeviceID)
+			} else {
+				log.Printf("[Log] ON state logged for device %d\n", req.DeviceID)
+			}
+
 			// Log this activation
 			if err := db.Create(&models.DeviceActivationLog{
 				UserID:    uint(req.UserID),
@@ -110,6 +123,19 @@ func startDeviceProcessor() {
 				continue
 			}
 			log.Printf("[State] Device %d turned OFF after %v\n", req.DeviceID, req.Duration)
+
+			// Log OFF state change with duration
+			if err := db.Create(&models.DeviceLog{
+				UserID:    uint(req.UserID),
+				DeviceID:  uint(req.DeviceID),
+				ChangedAt: time.Now(),
+				State:     "OFF",
+				Duration:  &req.Duration, // How long it was ON
+			}).Error; err != nil {
+				log.Printf("[Log] Failed to create OFF log for device %d\n", req.DeviceID)
+			} else {
+				log.Printf("[Log] OFF state logged for device %d (was ON for %v)\n", req.DeviceID, req.Duration)
+			}
 		}
 	}()
 }

@@ -47,6 +47,10 @@ func main() {
 	}
 	log.Println("Database connected successfully")
 
+	if err := mqtt.Connect(cfg.MQTTBroker); err != nil { // Connect to the MQTT broker
+		log.Fatal("MQTT connection error: ", err) // If error, log and exit
+	}
+
 	// Step 5: Initialize the HTTP server using Gin framework
 	// Gin is a high-performance HTTP web framework for Go
 	// gin.Default() creates a router with Logger and Recovery middleware already attached
