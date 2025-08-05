@@ -31,59 +31,74 @@ A Go backend server for MQTT motor control with incremental development. This pr
 ### Current Schema
 
 ```
-┌─────────────────┐    ┌─────────────────────┐    ┌─────────────────┐
-│      users      │    │      devices        │    │ deviceActivation│
-├─────────────────┤    ├─────────────────────┤    ├─────────────────┤
-│ id (PK)         │    │ id (PK)             │    │ id (PK)         │
-│ email (UNIQUE)  │    │ name                │    │ user_id (FK)    │
-│ password        │    │ state               │    │ device_id       │
-│ created_at      │    │ created_at          │    │ duration        │
-│ updated_at      │    │ updated_at          │    │ created_at      │
-│ deleted_at      │    │ deleted_at          │    └─────────────────┘
-└─────────────────┘    └─────────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                                 ▼
-                        ┌─────────────────┐
-                        │   deviceLogs    │
-                        ├─────────────────┤
-                        │ id (PK)         │
-                        │ user_id (FK)    │
-                        │ device_id       │
-                        │ changed_at      │
-                        │ state           │
-                        │ duration        │
-                        └─────────────────┘
+┌─────────────────┐         ┌─────────────────────┐
+│      users      │         │      devices        │
+├─────────────────┤         ├─────────────────────┤
+│ id (PK)         │         │ id (PK)             │
+│ email (UNIQUE)  │         │ name                │
+│ password        │         │ state               │
+│ created_at      │         │ created_at          │
+│ updated_at      │         │ updated_at          │
+│ deleted_at      │         │ deleted_at          │
+└─────────────────┘         └─────────────────────┘
+         │                           │
+         │ 1:N                       │ 1:N
+         ▼                           ▼
+┌─────────────────┐         ┌─────────────────┐
+│deviceActivation │         │   deviceLogs    │
+├─────────────────┤         ├─────────────────┤
+│ id (PK)         │         │ id (PK)         │
+│ user_id (FK)    │         │ user_id (FK)    │
+│ device_id (FK)  │         │ device_id (FK)  │
+│ request_at      │         │ changed_at      │
+│ duration        │         │ state           │
+└─────────────────┘         │ duration        │
+         │                  └─────────────────┘
+         │                           ▲
+         │ N:1                       │ N:1
+         └───────────────────────────┘
 ```
 
 ### Schema Details
 
-| Table | Field | Type | Constraints | Description |
-|-------|-------|------|-------------|-------------|
-| `users` | `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each user |
-| `users` | `email` | `varchar(255)` | `UNIQUE, NOT NULL` | User's email address (unique) |
-| `users` | `password` | `varchar(255)` | `NOT NULL` | Hashed password using bcrypt |
-| `users` | `created_at` | `timestamp` | `NOT NULL` | When the user account was created |
-| `users` | `updated_at` | `timestamp` | `NOT NULL` | When the user account was last updated |
-| `users` | `deleted_at` | `timestamp` | `NULL` | Soft delete timestamp (NULL = active) |
-| `devices` | `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each device |
-| `devices` | `name` | `varchar(255)` | `NOT NULL` | Device name (e.g., "Motor") |
-| `devices` | `state` | `enum` | `NOT NULL, DEFAULT 'UNKNOWN'` | Current state (ON/OFF/UNKNOWN) |
-| `devices` | `created_at` | `timestamp` | `NOT NULL` | When the device was created |
-| `devices` | `updated_at` | `timestamp` | `NOT NULL` | When the device was last updated |
-| `devices` | `deleted_at` | `timestamp` | `NULL` | Soft delete timestamp (NULL = active) |
-| `deviceActivation` | `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each activation |
-| `deviceActivation` | `user_id` | `uint` | `FOREIGN KEY` | User who requested activation |
-| `deviceActivation` | `device_id` | `uint` | `FOREIGN KEY` | Device that was activated |
-| `deviceActivation` | `duration` | `time.Duration` | `NOT NULL` | How long device was active |
-| `deviceActivation` | `created_at` | `timestamp` | `NOT NULL` | When activation was logged |
-| `deviceLogs` | `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each log |
-| `deviceLogs` | `user_id` | `uint` | `FOREIGN KEY` | User who triggered the change |
-| `deviceLogs` | `device_id` | `uint` | `FOREIGN KEY` | Device that changed state |
-| `deviceLogs` | `changed_at` | `timestamp` | `NOT NULL` | When the change occurred |
-| `deviceLogs` | `state` | `varchar(50)` | `NOT NULL` | New state (ON/OFF) |
-| `deviceLogs` | `duration` | `time.Duration` | `NULL` | How long in that state (optional) |
+#### 📋 **users** Table
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each user |
+| `email` | `varchar(255)` | `UNIQUE, NOT NULL` | User's email address (unique) |
+| `password` | `varchar(255)` | `NOT NULL` | Hashed password using bcrypt |
+| `created_at` | `timestamp` | `NOT NULL` | When the user account was created |
+| `updated_at` | `timestamp` | `NOT NULL` | When the user account was last updated |
+| `deleted_at` | `timestamp` | `NULL` | Soft delete timestamp (NULL = active) |
+
+#### 🔧 **devices** Table
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each device |
+| `name` | `varchar(255)` | `NOT NULL` | Device name (e.g., "Motor") |
+| `state` | `text` | `NOT NULL, DEFAULT 'UNKNOWN'` | Current state (ON/OFF/UNKNOWN) |
+| `created_at` | `timestamp` | `NOT NULL` | When the device was created |
+| `updated_at` | `timestamp` | `NOT NULL` | When the device was last updated |
+| `deleted_at` | `timestamp` | `NULL` | Soft delete timestamp (NULL = active) |
+
+#### 📊 **deviceActivationLogs** Table
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each activation |
+| `user_id` | `uint` | `FOREIGN KEY` | User who requested activation |
+| `device_id` | `int` | `FOREIGN KEY` | Device that was activated |
+| `request_at` | `timestamp` | `NOT NULL` | When the request was made |
+| `duration` | `time.Duration` | `NOT NULL` | How long device was active |
+
+#### 📝 **deviceLogs** Table
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each log |
+| `user_id` | `uint` | `FOREIGN KEY` | User who triggered the change |
+| `device_id` | `uint` | `FOREIGN KEY` | Device that changed state |
+| `changed_at` | `timestamp` | `NOT NULL` | When the change occurred |
+| `state` | `varchar(50)` | `NOT NULL` | New state (ON/OFF) |
+| `duration` | `time.Duration` | `NULL` | How long in that state (optional) |
 
 ### Database Features
 
