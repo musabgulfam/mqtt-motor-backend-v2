@@ -30,34 +30,7 @@ A Go backend server for MQTT motor control with incremental development. This pr
 
 ### Current Schema
 
-```
-┌─────────────────┐         ┌─────────────────────┐
-│      users      │         │      devices        │
-├─────────────────┤         ├─────────────────────┤
-│ id (PK)         │         │ id (PK)             │
-│ email (UNIQUE)  │         │ name                │
-│ password        │         │ state               │
-│ created_at      │         │ created_at          │
-│ updated_at      │         │ updated_at          │
-│ deleted_at      │         │ deleted_at          │
-└─────────────────┘         └─────────────────────┘
-         │                           │
-         │ 1:N                       │ 1:N
-         ▼                           ▼
-┌─────────────────┐         ┌─────────────────┐
-│deviceActivation │         │   deviceLogs    │
-├─────────────────┤         ├─────────────────┤
-│ id (PK)         │         │ id (PK)         │
-│ user_id (FK)    │         │ user_id (FK)    │
-│ device_id (FK)  │         │ device_id (FK)  │
-│ request_at      │         │ changed_at      │
-│ duration        │         │ state           │
-└─────────────────┘         │ duration        │
-         │                  └─────────────────┘
-         │                           ▲
-         │ N:1                       │ N:1
-         └───────────────────────────┘
-```
+![ERD](ERD.png)
 
 ### Schema Details
 

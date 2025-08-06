@@ -48,7 +48,7 @@ func Connect(dbPath string) error {
 		&models.DeviceActivationLog{},
 		&models.Device{
 			Name:  "Motor",
-			State: "OFF",
+			State: "UNKNOWN",
 		},
 		&models.DeviceLog{},
 	)
