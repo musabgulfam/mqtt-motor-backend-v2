@@ -6,6 +6,7 @@ import (
 	"mqtt-motor-backend/database"
 	"mqtt-motor-backend/handlers"
 	"mqtt-motor-backend/middleware"
+	"mqtt-motor-backend/mqtt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"

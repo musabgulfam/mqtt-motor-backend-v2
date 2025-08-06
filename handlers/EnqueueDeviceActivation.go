@@ -4,6 +4,7 @@ import (
 	"log"
 	"mqtt-motor-backend/database"
 	"mqtt-motor-backend/models"
+	"mqtt-motor-backend/mqtt"
 	"net/http"
 	"sync"
 	"time"
@@ -26,15 +27,15 @@ var (
 	totalUsageTime   time.Duration   // Tracks total usage in current quota window
 	quotaResetTime   time.Time       // Next time quota will reset (24h cycle)
 	deviceQuota      = 1 * time.Hour // Maximum allowed usage per 24 hours
-	once             sync.Once       // Ensures processor starts only once
+	once             sync.Once       // Ensures activator starts only once
 )
 
 // This function continuously listens to the queue and processes each request
-func startDeviceProcessor() {
+func startDeviceActivator() {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("[Panic] Device processor recovered: %v", r)
+				log.Printf("[Panic] Device activator recovered: %v", r)
 			}
 		}()
 
@@ -75,7 +76,8 @@ func startDeviceProcessor() {
 				continue
 			}
 
-			// TODO: Publish ON command to device MQTT broker
+			// Publish ON command to device MQTT broker
+			mqtt.Publish("motor/control", "on") // Send ON command
 
 			// Turn ON the device
 			if err := db.Model(&device).Update("state", "ON").Error; err != nil {
@@ -115,7 +117,8 @@ func startDeviceProcessor() {
 			// Keep the device ON for specified duration
 			time.Sleep(req.Duration)
 
-			// TODO: Publish OFF command to device MQTT broker
+			// Publish OFF command to device MQTT broker
+			mqtt.Publish("motor/control", "off") // Send OFF command
 
 			// Turn OFF the device
 			if err := db.Model(&device).Update("state", "OFF").Error; err != nil {
@@ -140,10 +143,10 @@ func startDeviceProcessor() {
 	}()
 }
 
-// This is the Gin route handler which enqueues the request into the processor queue
+// This is the Gin route handler which enqueues the request into the activator queue
 func EnqueueDeviceActivation(c *gin.Context) {
-	// Ensure the device processor starts only once in the application's lifetime
-	once.Do(startDeviceProcessor)
+	// Ensure the device activator starts only once in the application's lifetime
+	once.Do(startDeviceActivator)
 
 	// Extract user ID from JWT context (set by AuthMiddleware)
 	userID, exists := c.Get("userID")
