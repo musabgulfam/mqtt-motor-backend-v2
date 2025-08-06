@@ -87,10 +87,13 @@ func startDeviceActivator() {
 
 			log.Printf("[State] Device %d turned ON\n", req.DeviceID)
 
+			userID := uint(req.UserID)
+			deviceID := uint(req.DeviceID)
+
 			// Log ON state change
 			if err := db.Create(&models.DeviceLog{
-				UserID:    uint(req.UserID),
-				DeviceID:  uint(req.DeviceID),
+				UserID:    &userID,
+				DeviceID:  &deviceID,
 				ChangedAt: time.Now(),
 				State:     "ON",
 				Duration:  &req.Duration, // Will be set when device turns OFF
@@ -102,8 +105,8 @@ func startDeviceActivator() {
 
 			// Log this activation
 			if err := db.Create(&models.DeviceActivationLog{
-				UserID:    uint(req.UserID),
-				DeviceID:  req.DeviceID,
+				UserID:    &userID,
+				DeviceID:  &deviceID,
 				Duration:  req.Duration,
 				RequestAt: time.Now(),
 			}).Error; err != nil {
@@ -129,8 +132,8 @@ func startDeviceActivator() {
 
 			// Log OFF state change with duration
 			if err := db.Create(&models.DeviceLog{
-				UserID:    uint(req.UserID),
-				DeviceID:  uint(req.DeviceID),
+				UserID:    &userID,
+				DeviceID:  &deviceID,
 				ChangedAt: time.Now(),
 				State:     "OFF",
 				Duration:  &req.Duration, // How long it was ON

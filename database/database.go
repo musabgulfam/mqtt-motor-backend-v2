@@ -51,6 +51,7 @@ func Connect(dbPath string) error {
 			State: "UNKNOWN",
 		},
 		&models.DeviceLog{},
+		&models.DeviceSession{},
 	)
 	if err != nil {
 		// If migration fails, return the error
