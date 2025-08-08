@@ -9,7 +9,7 @@ import (
 type Device struct {
 	ID        uint   `gorm:"primaryKey"`
 	Name      string `gorm:"not null"`
-	State     string `gorm:"type:text; check:state IN ('ON','OFF','UNKNOWN'); default:'UNKNOWN'"` // SQLite-friendly ENUM
+	State     string `gorm:"type:text; check:state IN ('ON','OFF','UNKNOWN'); default:'UNKNOWN'"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
