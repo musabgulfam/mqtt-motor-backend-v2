@@ -11,7 +11,6 @@ import (
 // This struct centralizes all our application settings in one place
 // Each field corresponds to a specific aspect of our application
 type Config struct {
-	DBPath     string        // Path to the SQLite database file (e.g., "data.db")
 	MQTTBroker string        // MQTT broker URL (e.g., "tcp://localhost:1883")
 	JWTSecret  string        // Secret key for signing JWT tokens (should be kept secure)
 	Port       string        // HTTP server port (e.g., "8080")
@@ -28,10 +27,6 @@ type Config struct {
 // 4. Centralizing all configuration logic
 func Load() *Config {
 	return &Config{
-		// Database path - where our SQLite database file will be stored
-		// Default: "data.db" (creates a file in the current directory)
-		DBPath: getEnv("DB_PATH", "data.db"),
-
 		// MQTT broker URL - the address of our MQTT message broker
 		// Default: "tcp://localhost:1883" (local Mosquitto broker)
 		MQTTBroker: getEnv("MQTT_BROKER", "tcp://localhost:1883"),
@@ -61,99 +56,44 @@ func Load() *Config {
 
 // getEnv reads an environment variable and returns its value
 // If the environment variable is not set, it returns the default value
-// This provides a clean way to handle optional environment variables
-//
-// Parameters:
-//   - key: The name of the environment variable to read
-//   - defaultValue: The value to return if the environment variable is not set
-//
-// Returns:
-//   - The environment variable value, or the default value if not set
 func getEnv(key, defaultValue string) string {
-	// Try to get the environment variable
 	if value := os.Getenv(key); value != "" {
-		// If the environment variable exists and is not empty, return it
 		return value
 	}
-	// If the environment variable doesn't exist or is empty, return the default
 	return defaultValue
 }
 
 // getDurationEnv reads an environment variable and converts it to a time.Duration
-// This is useful for configuration values that represent time periods
-// The environment variable should be in Go's duration format (e.g., "1h", "30m", "2h30m")
-//
-// Parameters:
-//   - key: The name of the environment variable to read
-//   - defaultValue: The default duration if the environment variable is invalid or not set
-//
-// Returns:
-//   - The parsed duration, or the default value if parsing fails
 func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
-	// Try to get the environment variable
 	if value := os.Getenv(key); value != "" {
-		// Try to parse the string value as a duration
-		// Valid formats: "1h", "30m", "2h30m", "1.5h", etc.
 		if duration, err := time.ParseDuration(value); err == nil {
-			// If parsing succeeds, return the parsed duration
 			return duration
 		}
-		// If parsing fails, we'll fall through to return the default
-		// In a production app, you might want to log this error
 	}
-	// Return the default value if the environment variable doesn't exist or is invalid
 	return defaultValue
 }
 
 // getIntEnv reads an environment variable and converts it to an integer
-// This is useful for numeric configuration values like port numbers, timeouts, etc.
-//
-// Parameters:
-//   - key: The name of the environment variable to read
-//   - defaultValue: The default integer value if the environment variable is invalid or not set
-//
-// Returns:
-//   - The parsed integer, or the default value if parsing fails
 func getIntEnv(key string, defaultValue int) int {
-	// Try to get the environment variable
 	if value := os.Getenv(key); value != "" {
-		// Try to parse the string value as an integer
 		if intValue, err := strconv.Atoi(value); err == nil {
-			// If parsing succeeds, return the parsed integer
 			return intValue
 		}
-		// If parsing fails, we'll fall through to return the default
-		// In a production app, you might want to log this error
 	}
-	// Return the default value if the environment variable doesn't exist or is invalid
 	return defaultValue
 }
 
 // getBoolEnv reads an environment variable and converts it to a boolean
-// This is useful for configuration flags like debug mode, feature toggles, etc.
 // Valid values: "true", "false", "1", "0", "yes", "no" (case insensitive)
-//
-// Parameters:
-//   - key: The name of the environment variable to read
-//   - defaultValue: The default boolean value if the environment variable is invalid or not set
-//
-// Returns:
-//   - The parsed boolean, or the default value if parsing fails
 func getBoolEnv(key string, defaultValue bool) bool {
-	// Try to get the environment variable
 	if value := os.Getenv(key); value != "" {
-		// Convert to lowercase for case-insensitive comparison
 		value = strings.ToLower(value)
-		// Check for true values
 		if value == "true" || value == "1" || value == "yes" {
 			return true
 		}
-		// Check for false values
 		if value == "false" || value == "0" || value == "no" {
 			return false
 		}
-		// If the value is neither true nor false, fall through to default
 	}
-	// Return the default value if the environment variable doesn't exist or is invalid
 	return defaultValue
 }

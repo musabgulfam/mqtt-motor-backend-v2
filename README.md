@@ -4,11 +4,13 @@ A Go backend server for MQTT motor control with incremental development. This pr
 
 ## 🎯 Current Phase: Device Management ✅
 
+> **Note:** The next major feature under active development is **device session management**.
+
 ### What We've Built
 
 #### ✅ **Foundation (Phase 1)**
 - **Configuration Management**: Environment variables with sensible defaults
-- **Database Connection**: SQLite with GORM ORM
+- **Database Connection**: PostgreSQL with GORM ORM
 - **HTTP Server**: Gin framework with health endpoint
 - **Project Structure**: Clean, modular architecture
 
@@ -25,6 +27,11 @@ A Go backend server for MQTT motor control with incremental development. This pr
 - **Asynchronous Processing**: Background goroutine for device control
 - **Quota Management**: Daily usage limits with thread-safe implementation
 - **Device State Management**: ON/OFF state tracking with database persistence
+
+#### ✅ **MQTT Integration**
+- **MQTT Broker Connection**: Robust connection to MQTT broker for device control
+- **Publish/Subscribe**: Devices are controlled via MQTT messages
+- **Error Handling**: Graceful handling of MQTT connection failures
 
 ## 🗄️ Database Schema (ERD)
 
@@ -85,7 +92,7 @@ A Go backend server for MQTT motor control with incremental development. This pr
 
 ### Project Structure
 ```
-mqtt-motor-backend-v2/
+pumplink-backend/
 ├── main.go              # 🚀 Application entry point with routes
 ├── go.mod               # 📦 Go module dependencies
 ├── .env                 # ⚙️  Environment variables (configurable)
@@ -111,13 +118,14 @@ mqtt-motor-backend-v2/
 
 ### Prerequisites
 - **Go** (1.18 or newer) - Download from [golang.org](https://golang.org/dl/)
+- **PostgreSQL** database
 
 ### Step-by-Step Setup
 
 #### 1. Clone and Navigate
 ```bash
-# Navigate to your project directory
-cd mqtt-motor-backend-v2
+git clone https://github.com/musabgulfam/pumplink-backend.git
+cd pumplink-backend
 ```
 
 #### 2. Install Dependencies
@@ -264,15 +272,19 @@ Our application uses environment variables for configuration. All variables are 
 
 ### Environment Variables
 
-| Variable | Default | Description | Example |
-|----------|---------|-------------|---------|
-| `DB_PATH` | `data.db` | SQLite database file path | `./myapp.db` |
-| `MQTT_BROKER` | `tcp://localhost:1883` | MQTT broker URL (for Phase 4) | `tcp://broker.example.com:1883` |
-| `JWT_SECRET` | `supersecret` | Secret for JWT token signing | `my-super-secret-key-123` |
-| `PORT` | `8080` | HTTP server port | `3000` |
-| `DEBUG_MODE` | `true` | Enable debug logging | `false` |
-| `DAILY_QUOTA` | `1h` | Daily motor usage limit | `2h30m` |
-| `MAX_RETRIES` | `3` | Maximum retry attempts | `5` |
+| Variable      | Default                  | Description                        | Example                        |
+|---------------|--------------------------|------------------------------------|--------------------------------|
+| `DB_HOST`     | `localhost`              | PostgreSQL host                    | `db.example.com`               |
+| `DB_USER`     | `postgres`               | PostgreSQL user                    | `myuser`                       |
+| `DB_PASSWORD` | `password`               | PostgreSQL password                | `mypassword`                   |
+| `DB_NAME`     | `mqtt_motor`             | PostgreSQL database name           | `mqtt_motor`                   |
+| `DB_PORT`     | `5432`                   | PostgreSQL port                    | `5432`                         |
+| `MQTT_BROKER` | `tcp://localhost:1883`   | MQTT broker URL                    | `tcp://broker.example.com:1883`|
+| `JWT_SECRET`  | `supersecret`            | Secret for JWT token signing       | `my-super-secret-key-123`      |
+| `PORT`        | `8080`                   | HTTP server port                   | `3000`                         |
+| `DEBUG_MODE`  | `true`                   | Enable debug logging               | `false`                        |
+| `DAILY_QUOTA` | `1h`                     | Daily motor usage limit            | `2h30m`                        |
+| `MAX_RETRIES` | `3`                      | Maximum retry attempts             | `5`                            |
 
 ### Setting Environment Variables
 
@@ -290,14 +302,14 @@ DEBUG_MODE=false
 
 #### Using System Environment Variables
 ```bash
-# macOS/Linux
-export DB_PATH="./myapp.db"
+export DB_HOST="localhost"
+export DB_USER="postgres"
+export DB_PASSWORD="mypassword"
+export DB_NAME="mqtt_motor"
+export DB_PORT="5432"
 export PORT="3000"
 export JWT_SECRET="my-secret-key"
 export DEBUG_MODE="false"
-
-# Run the application
-go run main.go
 ```
 
 ## 🏗️ Architecture Overview
@@ -329,7 +341,7 @@ go run main.go
          │
          ▼
 ┌─────────────────┐    ┌─────────────────┐
-│   SQLite        │    │  Background     │  ← Asynchronous
+│ PostgreSQL      │    │  Background     │  ← Asynchronous
 │   Database      │    │   Processor     │    device control
 └─────────────────┘    └─────────────────┘
          │                       │
@@ -355,7 +367,7 @@ go run main.go
 
 - **Gin**: High-performance HTTP web framework for Go
 - **GORM**: Object-Relational Mapping for database operations
-- **SQLite**: Lightweight, file-based database
+- **PostgreSQL**: Powerful, open-source object-relational database system
 - **JWT**: JSON Web Tokens for authentication
 - **bcrypt**: Secure password hashing
 - **godotenv**: Environment variable management
@@ -376,83 +388,51 @@ go run main.go
 - **Advanced Quota**: Per-user and per-device quotas
 - **Device Scheduling**: Time-based device activation
 
+## 📝 Commit Message Guidelines
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) for clear and consistent commit messages:
+
+| Type      | When to use it                                      | Example                                 |
+|-----------|-----------------------------------------------------|-----------------------------------------|
+| `feat:`   | New feature                                         | `feat: add device scheduling endpoint`  |
+| `fix:`    | Bug fix                                             | `fix: correct quota calculation`        |
+| `refactor:` | Code change that neither fixes a bug nor adds a feature | `refactor: simplify device handler logic` |
+| `chore:`  | Maintenance, build, or tooling changes              | `chore: update dependencies`            |
+| `docs:`   | Documentation only changes                          | `docs: update README for PostgreSQL`    |
+| `test:`   | Adding or updating tests                            | `test: add tests for auth middleware`   |
+| `style:`  | Formatting, missing semi colons, etc; no code change| `style: format code with gofmt`         |
+| `perf:`   | Performance improvements                            | `perf: optimize device lookup`          |
+
+**Examples:**
+- `feat: implement JWT authentication`
+- `fix: handle device activation edge case`
+- `docs: add ERD image to README`
+- `refactor: move DB logic to separate package`
+- `chore: remove SQLite references`
+
 ## 🧪 Development & Testing
 
-### Running Tests
 ```bash
-# Run all tests (when we add them in future phases)
+# Run all tests
 go test ./...
-```
 
-### Code Formatting
-```bash
 # Format all Go code
 go fmt ./...
-```
 
-### Code Linting
-```bash
-# Check for common issues
+# Lint code
 go vet ./...
 ```
-
-### Testing the API
-```bash
-# Test health endpoint
-curl http://localhost:8080/health
-
-# Test user registration
-curl -X POST http://localhost:8080/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"testpass123"}'
-
-# Test user login
-curl -X POST http://localhost:8080/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"testpass123"}'
-
-# Test device activation (replace TOKEN with actual JWT token)
-curl -X POST http://localhost:8080/api/activate-device \
-  -H "Authorization: Bearer TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"device_id": 1, "duration": 30}'
-
-# Test protected endpoint (replace TOKEN with actual JWT token)
-curl -X GET http://localhost:8080/api/profile \
-  -H "Authorization: Bearer TOKEN"
-```
-
-## 📝 Code Quality
-
-This project emphasizes:
-- **Comprehensive Comments**: Every function and important line is documented
-- **Clean Architecture**: Separation of concerns with clear module boundaries
-- **Incremental Development**: Building features step by step
-- **Error Handling**: Proper error handling throughout the application
-- **Security**: Password hashing, JWT authentication, input validation
-- **Configuration Management**: Environment-based configuration
-- **Concurrency**: Thread-safe operations with mutexes and channels
-- **Asynchronous Processing**: Non-blocking API responses with background processing
-
-## 🔒 Security Features
-
-- **Password Hashing**: bcrypt for secure password storage
-- **JWT Authentication**: Stateless authentication with tokens
-- **Input Validation**: Email format and password strength validation
-- **Error Messages**: Generic error messages to prevent information leakage
-- **Protected Routes**: Middleware-based route protection
-- **Quota Enforcement**: Daily usage limits to prevent abuse
-- **Queue Protection**: Prevents system overload with capacity limits
 
 ## 🤝 Contributing
 
 When adding new features:
 1. Follow the incremental phase approach
 2. Add comprehensive comments explaining what and why
-3. Update this README with new features
-4. Test thoroughly before moving to next phase
-5. Ensure thread-safety for concurrent operations
+3. Use appropriate commit messages (see above)
+4. Update this README with new features
+5. Test thoroughly before moving to next phase
+6. Ensure thread-safety for concurrent operations
 
 ## 📄 License
 
-MIT License - feel free to use this code for your own projects!
+MIT License - feel free to use this code for

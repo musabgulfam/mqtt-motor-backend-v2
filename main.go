@@ -39,11 +39,9 @@ func main() {
 	}
 
 	// Step 4: Initialize database connection
-	// This connects to our SQLite database and creates the database file if it doesn't exist
-	// The database will store users, device activations, and other application data
-	if err := database.Connect(cfg.DBPath); err != nil {
-		// If database connection fails, we log the error and exit
-		// This is critical because our app can't function without a database
+	// This connects to our PostgreSQL database and ensures the schema is up to date.
+	// The database will store users, device activations, and other application data.
+	if err := database.Connect(); err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	log.Println("Database connected successfully")
