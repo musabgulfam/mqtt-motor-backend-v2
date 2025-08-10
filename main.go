@@ -49,6 +49,7 @@ func main() {
 	if err := mqtt.Connect(cfg.MQTTBroker); err != nil { // Connect to the MQTT broker
 		log.Fatal("MQTT connection error: ", err) // If error, log and exit
 	}
+	log.Println("Connected to MQTT broker successfully")
 
 	// Step 5: Initialize the HTTP server using Gin framework
 	r := gin.Default()

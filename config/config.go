@@ -11,12 +11,14 @@ import (
 // This struct centralizes all our application settings in one place
 // Each field corresponds to a specific aspect of our application
 type Config struct {
-	MQTTBroker string        // MQTT broker URL (e.g., "tcp://localhost:1883")
-	JWTSecret  string        // Secret key for signing JWT tokens (should be kept secure)
-	Port       string        // HTTP server port (e.g., "8080")
-	DailyQuota time.Duration // Maximum daily motor usage quota per user (e.g., 1 hour)
-	MaxRetries int           // Maximum number of retry attempts for failed operations
-	DebugMode  bool          // Whether to run in debug mode (default: true for development)
+	MQTTBroker   string        // MQTT broker URL (e.g., "tcp://localhost:1883")
+	JWTSecret    string        // Secret key for signing JWT tokens (should be kept secure)
+	Port         string        // HTTP server port (e.g., "8080")
+	DailyQuota   time.Duration // Maximum daily motor usage quota per user (e.g., 1 hour)
+	MaxRetries   int           // Maximum number of retry attempts for failed operations
+	DebugMode    bool          // Whether to run in debug mode (default: true for development)
+	MQTTUsername string        // MQTT username for authentication
+	MQTTPassword string        // MQTT password for authentication
 }
 
 // Load reads configuration from environment variables and returns a Config struct
@@ -51,6 +53,9 @@ func Load() *Config {
 		// Debug mode - whether to run in debug mode (shows detailed logs, SQL queries, etc.)
 		// Default: true for development, should be false in production
 		DebugMode: getBoolEnv("DEBUG_MODE", true),
+
+		MQTTUsername: getEnv("MQTT_USERNAME", "your-hivemq-username"), // MQTT username for authentication
+		MQTTPassword: getEnv("MQTT_PASSWORD", "your-hivemq-password"), // MQTT password for authentication
 	}
 }
 
