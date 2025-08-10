@@ -2,9 +2,9 @@
 
 A Go backend server for MQTT motor control with incremental development. This project is built step-by-step, with each phase adding new features while maintaining clean, well-documented code.
 
-## 🎯 Current Phase: Device Management ✅
+## 🎯 Current Phase: Device Session Management ✅
 
-> **Note:** The next major feature under active development is **device session management**.
+> **Note:** Device session management is now complete! The backend now tracks device activation sessions, linking ON/OFF events and durations for full auditability.
 
 ### What We've Built
 
@@ -16,79 +16,40 @@ A Go backend server for MQTT motor control with incremental development. This pr
 
 #### ✅ **User Authentication (Phase 2)**
 - **User Model**: Database schema with password hashing
-- **Registration**: `POST /register` endpoint with validation
-- **Login**: `POST /login` endpoint with JWT token generation
+- **Registration**: `POST api/v1/register` endpoint with validation
+- **Login**: `POST api/v1/login` endpoint with JWT token generation
 - **Authentication Middleware**: JWT token validation for protected routes
 - **Environment Configuration**: `.env` file support with comprehensive settings
 
 #### ✅ **Device Management (Phase 3)**
 - **Device Models**: Database schema for devices and activation logs
-- **Device Activation**: `POST /api/activate` endpoint with queue system
+- **Device Activation**: `POST /api/v1/activate` endpoint with queue system
 - **Asynchronous Processing**: Background goroutine for device control
 - **Quota Management**: Daily usage limits with thread-safe implementation
 - **Device State Management**: ON/OFF state tracking with database persistence
 
 #### ✅ **MQTT Integration**
 - **MQTT Broker Connection**: Robust connection to MQTT broker for device control
-- **Publish/Subscribe**: Devices are controlled via MQTT messages
-- **Error Handling**: Graceful handling of MQTT connection failures
+
+#### ✅ **Device Session Management (Phase 4)**
+- **Session Tracking**: Each device activation creates a session, linking ON/OFF events and durations
+- **Session Logs**: All state changes and durations are linked to session IDs for full traceability
+- **Auditability**: Enables detailed reporting and analysis of device usage
+
+---
 
 ## 🗄️ Database Schema (ERD)
 
-### Current Schema
+### Entity Relationship Diagram
 
 ![ERD](ERD.png)
 
-### Schema Details
+- **users**: Stores user accounts.
+- **devices**: Stores device info and state.
+- **sessions**: Tracks each device activation session (start/end, user, device).
+- **device_logs**: Logs all device state changes (ON/OFF, duration, session link).
 
-#### 📋 **users** Table
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each user |
-| `email` | `varchar(255)` | `UNIQUE, NOT NULL` | User's email address (unique) |
-| `password` | `varchar(255)` | `NOT NULL` | Hashed password using bcrypt |
-| `created_at` | `timestamp` | `NOT NULL` | When the user account was created |
-| `updated_at` | `timestamp` | `NOT NULL` | When the user account was last updated |
-| `deleted_at` | `timestamp` | `NULL` | Soft delete timestamp (NULL = active) |
-
-#### 🔧 **devices** Table
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each device |
-| `name` | `varchar(255)` | `NOT NULL` | Device name (e.g., "Motor") |
-| `state` | `text` | `NOT NULL, DEFAULT 'UNKNOWN'` | Current state (ON/OFF/UNKNOWN) |
-| `created_at` | `timestamp` | `NOT NULL` | When the device was created |
-| `updated_at` | `timestamp` | `NOT NULL` | When the device was last updated |
-| `deleted_at` | `timestamp` | `NULL` | Soft delete timestamp (NULL = active) |
-
-#### 📊 **deviceActivationLogs** Table
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each activation |
-| `user_id` | `uint` | `FOREIGN KEY` | User who requested activation |
-| `device_id` | `int` | `FOREIGN KEY` | Device that was activated |
-| `request_at` | `timestamp` | `NOT NULL` | When the request was made |
-| `duration` | `time.Duration` | `NOT NULL` | How long device was active |
-
-#### 📝 **deviceLogs** Table
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | `uint` | `PRIMARY KEY, AUTO_INCREMENT` | Unique identifier for each log |
-| `user_id` | `uint` | `FOREIGN KEY` | User who triggered the change |
-| `device_id` | `uint` | `FOREIGN KEY` | Device that changed state |
-| `changed_at` | `timestamp` | `NOT NULL` | When the change occurred |
-| `state` | `varchar(50)` | `NOT NULL` | New state (ON/OFF) |
-| `duration` | `time.Duration` | `NULL` | How long in that state (optional) |
-
-### Database Features
-
-- **Soft Deletes**: Users and devices are not permanently deleted, just marked as deleted
-- **Timestamps**: Automatic creation and update timestamps
-- **Password Security**: Passwords are hashed using bcrypt
-- **Email Uniqueness**: Prevents duplicate user accounts
-- **Device State Tracking**: Real-time device state management
-- **Activation Logging**: Comprehensive logging of device activations
-- **GORM Integration**: Automatic schema management and migrations
+---
 
 ### Project Structure
 ```
@@ -109,7 +70,7 @@ pumplink-backend/
 │   └── deviceLog.go     # 📝 Device state change logging
 ├── handlers/
 │   ├── user.go          # 🔐 User registration and login handlers
-│   └── EnqueueDeviceActivation.go # ⚡ Device activation with queue system
+│   └── DeviceHandler.go # ⚡ Device activation with queue system
 └── middleware/
     └── auth.go          # 🛡️  JWT authentication middleware
 ```

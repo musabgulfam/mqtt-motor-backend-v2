@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"log"
 	"mqtt-motor-backend/models"
 	"os"
 
@@ -45,6 +46,7 @@ func Connect() error {
 	// Replace with your actual database credentials and connection details
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
+		log.Fatal("Failed to connect to the database:", err)
 		return err
 	}
 	DB = db
@@ -55,7 +57,7 @@ func Connect() error {
 	// This is especially useful during development when models change frequently
 	err = DB.AutoMigrate(
 		&models.User{},
-		&models.DeviceActivationLog{},
+		// &models.DeviceActivationLog{},
 		&models.Device{},
 		&models.DeviceLog{},
 		&models.DeviceSession{},

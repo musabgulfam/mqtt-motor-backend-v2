@@ -79,14 +79,15 @@ func main() {
 				})
 			})
 
-		protected.POST("/activate", handlers.DeviceHandler) // Activate a device with a duration
-	}
+			protected.POST("/activate", handlers.DeviceHandler) // Activate a device with a duration
+		}
 
-	// Step 9: Start the HTTP server
-	// This begins listening for incoming HTTP requests on the specified port
-	// The server will run indefinitely until manually stopped or an error occurs
-	if err := r.Run(":" + cfg.Port); err != nil {
-		// If the server fails to start (e.g., port already in use), we log and exit
-		log.Fatal("Failed to start server:", err)
+		// Step 9: Start the HTTP server
+		// This begins listening for incoming HTTP requests on the specified port
+		// The server will run indefinitely until manually stopped or an error occurs
+		if err := r.Run(":" + cfg.Port); err != nil {
+			// If the server fails to start (e.g., port already in use), we log and exit
+			log.Fatal("Failed to start server:", err)
+		}
 	}
 }

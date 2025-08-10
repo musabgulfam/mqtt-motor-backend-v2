@@ -76,6 +76,17 @@ func startDeviceActivator() {
 				continue
 			}
 
+			// Create a new device session
+			session := models.DeviceSession{
+				UserID:   uint(req.UserID),
+				DeviceID: uint(req.DeviceID),
+			}
+
+			if err := db.Create(&session).Error; err != nil {
+				log.Printf("[DB] Failed to create device session for User %d | Device %d: %v\n", req.UserID, req.DeviceID, err)
+				continue
+			}
+
 			// Publish ON command to device MQTT broker
 			mqtt.Publish("motor/control", "on") // Send ON command
 
@@ -87,32 +98,16 @@ func startDeviceActivator() {
 
 			log.Printf("[State] Device %d turned ON\n", req.DeviceID)
 
-			userID := uint(req.UserID)
-			deviceID := uint(req.DeviceID)
-
 			// Log ON state change
 			if err := db.Create(&models.DeviceLog{
-				UserID:    &userID,
-				DeviceID:  &deviceID,
 				ChangedAt: time.Now(),
 				State:     "ON",
 				Duration:  &req.Duration, // Will be set when device turns OFF
+				SessionID: session.ID,    // Link to the session
 			}).Error; err != nil {
 				log.Printf("[Log] Failed to create ON log for device %d\n", req.DeviceID)
 			} else {
 				log.Printf("[Log] ON state logged for device %d\n", req.DeviceID)
-			}
-
-			// Log this activation
-			if err := db.Create(&models.DeviceActivationLog{
-				UserID:    &userID,
-				DeviceID:  &deviceID,
-				Duration:  req.Duration,
-				RequestAt: time.Now(),
-			}).Error; err != nil {
-				log.Printf("[Log] Failed to create activation log for device %d\n", req.DeviceID)
-			} else {
-				log.Printf("[Log] Activation log created for device %d\n", req.DeviceID)
 			}
 
 			log.Printf("[State] Device %d will remain ON for %v\n", req.DeviceID, req.Duration)
@@ -132,11 +127,10 @@ func startDeviceActivator() {
 
 			// Log OFF state change with duration
 			if err := db.Create(&models.DeviceLog{
-				UserID:    &userID,
-				DeviceID:  &deviceID,
 				ChangedAt: time.Now(),
 				State:     "OFF",
-				Duration:  &req.Duration, // How long it was ON
+				// Duration:  &req.Duration, // How long it was ON
+				SessionID: session.ID, // Link to the session
 			}).Error; err != nil {
 				log.Printf("[Log] Failed to create OFF log for device %d\n", req.DeviceID)
 			} else {
