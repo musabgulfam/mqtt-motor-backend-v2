@@ -128,10 +128,10 @@ func Login(c *gin.Context) {
 	// They allow users to access protected endpoints without logging in again
 	cfg := config.Load()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub":   user.ID,                               // Subject (user ID)
-		"email": user.Email,                            // User's email
-		"exp":   time.Now().Add(time.Hour * 24).Unix(), // Expires in 24 hours
-		"iat":   time.Now().Unix(),                     // Issued at (current time)
+		"sub":   user.ID,                              // Subject (user ID)
+		"email": user.Email,                           // User's email
+		"exp":   time.Now().Add(time.Hour * 2).Unix(), // Expires in 2 hours
+		"iat":   time.Now().Unix(),                    // Issued at (current time)
 	})
 
 	// Sign the token with our secret key
