@@ -144,7 +144,7 @@ func startDeviceActivator() {
 }
 
 // This is the Gin route handler which enqueues the request into the activator queue
-func EnqueueDeviceActivation(c *gin.Context) {
+func DeviceHandler(c *gin.Context) {
 	// Ensure the device activator starts only once in the application's lifetime
 	once.Do(startDeviceActivator)
 

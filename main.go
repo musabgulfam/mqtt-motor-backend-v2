@@ -104,7 +104,7 @@ func main() {
 			})
 		})
 
-		protected.POST("/activate", handlers.EnqueueDeviceActivation)
+		protected.POST("/activate", handlers.DeviceHandler) // Activate a device with a duration
 	}
 
 	// Step 9: Start the HTTP server
