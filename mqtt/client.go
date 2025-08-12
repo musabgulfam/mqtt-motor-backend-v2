@@ -6,18 +6,18 @@ import ( // Import required packages
 	"crypto/tls"
 	"crypto/x509"
 
-	"mqtt-motor-backend/config"
+	"github.com/musabgulfam/pumplink-backend/config"
 
-	mqtt "github.com/eclipse/paho.mqtt.golang" // MQTT library
+	mqttlib "github.com/eclipse/paho.mqtt.golang" // MQTT library
 )
 
-var Client mqtt.Client // Global variable for the MQTT client
+var Client mqttlib.Client // Global variable for the MQTT client
 
 func Connect(broker string) error { // Connects to the MQTT broker
-	cfg := config.Load()                              // Load configuration settings
-	opts := mqtt.NewClientOptions().AddBroker(broker) // Set broker address
-	opts.SetUsername(cfg.MQTTUsername)                // Set MQTT username from config
-	opts.SetPassword(cfg.MQTTPassword)                // Set MQTT password from config
+	cfg := config.Load()                                 // Load configuration settings
+	opts := mqttlib.NewClientOptions().AddBroker(broker) // Set broker address
+	opts.SetUsername(cfg.MQTTUsername)                   // Set MQTT username from config
+	opts.SetPassword(cfg.MQTTPassword)                   // Set MQTT password from config
 
 	// Load system root CA certificates
 	rootCAs, err := x509.SystemCertPool()
@@ -38,14 +38,14 @@ func Connect(broker string) error { // Connects to the MQTT broker
 
 	opts.SetTLSConfig(tlsConfig)
 
-	Client = mqtt.NewClient(opts)                                        // Create new MQTT client
+	Client = mqttlib.NewClient(opts)                                     // Create new MQTT client
 	if token := Client.Connect(); token.Wait() && token.Error() != nil { // Try to connect
 		return token.Error() // Return error if connection fails
 	}
 	return nil // Success
 }
 
-func Subscribe(topic string, callback mqtt.MessageHandler) error { // Subscribe to a topic
+func Subscribe(topic string, callback mqttlib.MessageHandler) error { // Subscribe to a topic
 	if token := Client.Subscribe(topic, 0, callback); token.Wait() && token.Error() != nil { // Try to subscribe
 		return token.Error() // Return error if fails
 	}

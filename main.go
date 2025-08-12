@@ -2,12 +2,14 @@ package main
 
 import (
 	"log"
-	"mqtt-motor-backend/config"
-	"mqtt-motor-backend/database"
-	"mqtt-motor-backend/handlers"
-	"mqtt-motor-backend/middleware"
-	"mqtt-motor-backend/mqtt"
 
+	"github.com/musabgulfam/pumplink-backend/config"
+	"github.com/musabgulfam/pumplink-backend/database"
+	"github.com/musabgulfam/pumplink-backend/handlers"
+	"github.com/musabgulfam/pumplink-backend/middleware"
+	"github.com/musabgulfam/pumplink-backend/mqtt"
+
+	mqttlib "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -51,6 +53,18 @@ func main() {
 	}
 	log.Println("Connected to MQTT broker successfully")
 
+	// Subscribe to all device status topics
+	mqtt.Subscribe("devices/+/status", func(client mqttlib.Client, msg mqttlib.Message) {
+		topic := msg.Topic()
+		payload := string(msg.Payload())
+
+		log.Printf("MQTT message: %s -> %s\n", topic, payload)
+
+		// Here we would figure out which user this device belongs to (Start here 12th August 2025)
+		// userID := findUserByDevice(topic)
+		// wsManager.BroadcastToUser(userID, payload)
+	})
+
 	// Step 5: Initialize the HTTP server using Gin framework
 	r := gin.Default()
 
@@ -81,6 +95,9 @@ func main() {
 			})
 
 			protected.POST("/activate", handlers.DeviceHandler) // Activate a device with a duration
+			protected.GET("/ws", func(c *gin.Context) {
+				handlers.WebSocketHandler(c.Writer, c.Request)
+			}) // WebSocket endpoint
 		}
 
 		// Step 9: Start the HTTP server

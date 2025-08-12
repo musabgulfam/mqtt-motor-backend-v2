@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"mqtt-motor-backend/config"
-	"mqtt-motor-backend/database"
-	"mqtt-motor-backend/models"
+	"github.com/musabgulfam/pumplink-backend/config"
+	"github.com/musabgulfam/pumplink-backend/database"
+	"github.com/musabgulfam/pumplink-backend/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"

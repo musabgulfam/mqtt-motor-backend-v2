@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"log"
-	"mqtt-motor-backend/database"
-	"mqtt-motor-backend/models"
-	"mqtt-motor-backend/mqtt"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/musabgulfam/pumplink-backend/database"
+	"github.com/musabgulfam/pumplink-backend/models"
+	"github.com/musabgulfam/pumplink-backend/mqtt"
 
 	"github.com/gin-gonic/gin"
 )
