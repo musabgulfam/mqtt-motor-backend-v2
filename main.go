@@ -8,6 +8,7 @@ import (
 	"github.com/musabgulfam/pumplink-backend/handlers"
 	"github.com/musabgulfam/pumplink-backend/middleware"
 	"github.com/musabgulfam/pumplink-backend/mqtt"
+	wsmanager "github.com/musabgulfam/pumplink-backend/realtime"
 
 	mqttlib "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gin-gonic/gin"
@@ -54,7 +55,7 @@ func main() {
 	log.Println("Connected to MQTT broker successfully")
 
 	// Subscribe to all device status topics
-	mqtt.Subscribe("devices/+/status", func(client mqttlib.Client, msg mqttlib.Message) {
+	mqtt.Subscribe("device/+/status", func(client mqttlib.Client, msg mqttlib.Message) {
 		topic := msg.Topic()
 		payload := string(msg.Payload())
 
@@ -62,7 +63,7 @@ func main() {
 
 		// Here we would figure out which user this device belongs to (Start here 12th August 2025)
 		// userID := findUserByDevice(topic)
-		// wsManager.BroadcastToUser(userID, payload)
+		wsmanager.Broadcast(payload)
 	})
 
 	// Step 5: Initialize the HTTP server using Gin framework
@@ -81,6 +82,9 @@ func main() {
 	{
 		api.POST("/register", handlers.Register)
 		api.POST("/login", handlers.Login)
+		api.GET("/ws", func(c *gin.Context) {
+			handlers.WebSocketHandler(c.Writer, c.Request)
+		}) // WebSocket endpoint for real-time updates. JWT authentication is done in the WebSocket handler
 
 		// Step 8: Define protected routes (require authentication)
 		protected := api.Group("/")
@@ -95,9 +99,9 @@ func main() {
 			})
 
 			protected.POST("/activate", handlers.DeviceHandler) // Activate a device with a duration
-			protected.GET("/ws", func(c *gin.Context) {
-				handlers.WebSocketHandler(c.Writer, c.Request)
-			}) // WebSocket endpoint
+			// protected.GET("/ws", func(c *gin.Context) {
+			// 	handlers.WebSocketHandler(c.Writer, c.Request)
+			// }) // WebSocket endpoint
 		}
 
 		// Step 9: Start the HTTP server
