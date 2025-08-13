@@ -1,13 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"mqtt-motor-backend/config"
-	"mqtt-motor-backend/database"
-	"mqtt-motor-backend/handlers"
-	"mqtt-motor-backend/middleware"
-	"mqtt-motor-backend/mqtt"
 
+	"github.com/musabgulfam/pumplink-backend/config"
+	"github.com/musabgulfam/pumplink-backend/database"
+	"github.com/musabgulfam/pumplink-backend/handlers"
+	"github.com/musabgulfam/pumplink-backend/middleware"
+	"github.com/musabgulfam/pumplink-backend/mqtt"
+	wsmanager "github.com/musabgulfam/pumplink-backend/realtime"
+
+	mqttlib "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -46,10 +50,22 @@ func main() {
 	}
 	log.Println("Database connected successfully")
 
-	if err := mqtt.Connect(cfg.MQTTBroker); err != nil { // Connect to the MQTT broker
+	if err := mqtt.Connect(fmt.Sprintf("%s://%s:%d", cfg.MQTTProtocol, cfg.MQTTHost, cfg.MQTTPort)); err != nil { // Connect to the MQTT broker
 		log.Fatal("MQTT connection error: ", err) // If error, log and exit
 	}
 	log.Println("Connected to MQTT broker successfully")
+
+	// Subscribe to all device status topics
+	mqtt.Subscribe("device/+/status", func(client mqttlib.Client, msg mqttlib.Message) {
+		topic := msg.Topic()
+		payload := string(msg.Payload())
+
+		log.Printf("MQTT message: %s -> %s\n", topic, payload)
+
+		// Here we would figure out which user this device belongs to (Start here 12th August 2025)
+		// userID := findUserByDevice(topic)
+		wsmanager.Broadcast(payload)
+	})
 
 	// Step 5: Initialize the HTTP server using Gin framework
 	r := gin.Default()
@@ -67,6 +83,9 @@ func main() {
 	{
 		api.POST("/register", handlers.Register)
 		api.POST("/login", handlers.Login)
+		api.GET("/ws", func(c *gin.Context) {
+			handlers.WebSocketHandler(c.Writer, c.Request)
+		}) // WebSocket endpoint for real-time updates. JWT authentication is done in the WebSocket handler
 
 		// Step 8: Define protected routes (require authentication)
 		protected := api.Group("/")
@@ -81,6 +100,9 @@ func main() {
 			})
 
 			protected.POST("/activate", handlers.DeviceHandler) // Activate a device with a duration
+			// protected.GET("/ws", func(c *gin.Context) {
+			// 	handlers.WebSocketHandler(c.Writer, c.Request)
+			// }) // WebSocket endpoint
 		}
 
 		// Step 9: Start the HTTP server

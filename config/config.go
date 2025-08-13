@@ -11,7 +11,6 @@ import (
 // This struct centralizes all our application settings in one place
 // Each field corresponds to a specific aspect of our application
 type Config struct {
-	MQTTBroker   string        // MQTT broker URL (e.g., "tcp://localhost:1883")
 	JWTSecret    string        // Secret key for signing JWT tokens (should be kept secure)
 	Port         string        // HTTP server port (e.g., "8080")
 	DailyQuota   time.Duration // Maximum daily motor usage quota per user (e.g., 1 hour)
@@ -19,6 +18,9 @@ type Config struct {
 	DebugMode    bool          // Whether to run in debug mode (default: true for development)
 	MQTTUsername string        // MQTT username for authentication
 	MQTTPassword string        // MQTT password for authentication
+	MQTTHost     string        // MQTT host (e.g., "localhost")
+	MQTTProtocol string        // MQTT protocol (e.g., "ssl", "tcp")
+	MQTTPort     int           // MQTT port (e.g., 8883)
 }
 
 // Load reads configuration from environment variables and returns a Config struct
@@ -29,9 +31,11 @@ type Config struct {
 // 4. Centralizing all configuration logic
 func Load() *Config {
 	return &Config{
-		// MQTT broker URL - the address of our MQTT message broker
-		// Default: "tcp://localhost:1883" (local Mosquitto broker)
-		MQTTBroker: getEnv("MQTT_BROKER", "tcp://localhost:1883"),
+		MQTTHost: getEnv("MQTT_HOST", "localhost"), // MQTT host (e.g., "localhost")
+
+		MQTTProtocol: getEnv("MQTT_PROTOCOL", "tcp"), // MQTT protocol (e.g., "ssl", "tcp")
+
+		MQTTPort: getIntEnv("MQTT_PORT", 8883),
 
 		// JWT secret - used to sign and verify JSON Web Tokens for authentication
 		// WARNING: In production, this should be a strong, random secret

@@ -3,8 +3,9 @@ package database
 import (
 	"fmt"
 	"log"
-	"mqtt-motor-backend/models"
 	"os"
+
+	"github.com/musabgulfam/pumplink-backend/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
