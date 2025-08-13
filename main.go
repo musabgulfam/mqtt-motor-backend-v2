@@ -100,9 +100,8 @@ func main() {
 			})
 
 			protected.POST("/activate", handlers.DeviceHandler) // Activate a device with a duration
-			// protected.GET("/ws", func(c *gin.Context) {
-			// 	handlers.WebSocketHandler(c.Writer, c.Request)
-			// }) // WebSocket endpoint
+
+			protected.GET("device/:id/status", handlers.DeviceStatusHandler)
 		}
 
 		// Step 9: Start the HTTP server

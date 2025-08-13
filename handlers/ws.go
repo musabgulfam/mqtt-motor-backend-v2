@@ -33,7 +33,10 @@ func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	_, err = utils.ValidateJWT(token)
 	if err != nil {
 		log.Println("Invalid token, closing connection")
-		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "Invalid token"))
+		closeMsg := websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "Unauthorized: Invalid token")
+		conn.WriteMessage(websocket.CloseMessage, closeMsg)
+		conn.Close()
+		log.Println("Connection closed due to invalid token")
 		return
 	}
 
