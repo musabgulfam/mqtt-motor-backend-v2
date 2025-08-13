@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/musabgulfam/pumplink-backend/config"
@@ -49,7 +50,7 @@ func main() {
 	}
 	log.Println("Database connected successfully")
 
-	if err := mqtt.Connect(cfg.MQTTBroker); err != nil { // Connect to the MQTT broker
+	if err := mqtt.Connect(fmt.Sprintf("%s://%s:%d", cfg.MQTTProtocol, cfg.MQTTHost, cfg.MQTTPort)); err != nil { // Connect to the MQTT broker
 		log.Fatal("MQTT connection error: ", err) // If error, log and exit
 	}
 	log.Println("Connected to MQTT broker successfully")

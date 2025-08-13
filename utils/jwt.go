@@ -12,7 +12,7 @@ import (
 func ValidateJWT(tokenStr string) (string, error) {
 	cfg := config.Load()
 	jwtSecret := []byte(cfg.JWTSecret)
-	log.Printf("[JWT] Validating token: %s", tokenStr)
+	log.Printf("[JWT] Validating token")
 
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		// Validate signing method if needed:
