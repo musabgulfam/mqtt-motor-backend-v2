@@ -8,6 +8,7 @@ import (
 	"github.com/musabgulfam/pumplink-backend/database"
 	"github.com/musabgulfam/pumplink-backend/handlers"
 	"github.com/musabgulfam/pumplink-backend/middleware"
+	"github.com/musabgulfam/pumplink-backend/models"
 	"github.com/musabgulfam/pumplink-backend/mqtt"
 	wsmanager "github.com/musabgulfam/pumplink-backend/realtime"
 
@@ -99,7 +100,7 @@ func main() {
 				})
 			})
 
-			protected.POST("/activate", handlers.DeviceHandler) // Activate a device with a duration
+			protected.POST("/activate", middleware.RoleMiddleware(models.RoleUser, models.RoleAdmin), handlers.DeviceHandler) // Activate a device with a duration
 
 			protected.GET("device/:id/status", handlers.DeviceStatusHandler)
 		}

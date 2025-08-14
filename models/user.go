@@ -10,6 +10,7 @@ type User struct {
 	ID       uint   `json:"id" gorm:"primaryKey"`
 	Email    string `json:"email" gorm:"uniqueIndex;not null"`
 	Password string `json:"-" gorm:"not null"`
+	Role     string `gorm:"default:'pending'"` // Default role is 'pending'
 }
 
 func (u *User) CheckPassword(password string) bool {
