@@ -227,6 +227,32 @@ Response:
 - **Queue Protection**: Returns 429 if queue is full (max 100 pending requests)
 - **Database Only**: Currently updates database state (MQTT integration coming in Phase 4)
 
+### Device Status
+
+```bash
+GET /api/device/:id/status
+Authorization: Bearer <JWT_TOKEN>
+```
+Response:
+```json
+"ON"
+```
+
+---
+
+## 🛡️ Role-Based Access Control (RBAC)
+
+- **How it works:**  
+  Protected endpoints (like `/api/activate`) now require the user to have an appropriate role.
+- **Roles:**  
+  - `pending`: Default for new users, cannot activate devices.
+  - `user`: Can activate devices and access device features.
+  - `admin`: Full access, including management endpoints.
+- **How to use:**  
+  Admins can promote users by updating their role in the database.
+
+---
+
 ## ⚙️ Configuration
 
 Our application uses environment variables for configuration. All variables are optional and have sensible defaults.
