@@ -20,8 +20,8 @@ type DeviceRequest struct {
 	Duration time.Duration // For how long the device should remain ON
 }
 
-// Channel used as a request queue (max 100 pending requests)
 var (
+	// Unbuffered Channel used as a request queue
 	deviceQueue = make(chan *DeviceRequest) // Unbuffered channel: send blocks until another goroutine is ready to receive
 
 	deviceQuotaMutex sync.Mutex      // Mutex for thread-safe quota updates
@@ -33,118 +33,117 @@ var (
 
 // This function continuously listens to the queue and processes each request
 func startDeviceActivator() {
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("[Panic] Device activator recovered: %v", r)
-			}
-		}()
-
-		for req := range deviceQueue {
-			log.Printf("[Queue] Processing request for User %d | Device %d | Duration %v\n", req.UserID, req.DeviceID, req.Duration)
-
-			// Reset quota every 24 hours
-			if time.Now().After(quotaResetTime) {
-				deviceQuotaMutex.Lock()
-				totalUsageTime = 0
-				quotaResetTime = time.Now().Add(24 * time.Hour)
-				deviceQuotaMutex.Unlock()
-				log.Println("[Quota] Daily quota has been reset")
-			}
-
-			// Check if this request exceeds daily quota
-			deviceQuotaMutex.Lock()
-			if req.Duration+totalUsageTime > deviceQuota {
-				deviceQuotaMutex.Unlock()
-				log.Printf("[Quota] Quota exceeded for User %d. Skipping request.\n", req.UserID)
-				continue
-			}
-			totalUsageTime += req.Duration
-			deviceQuotaMutex.Unlock()
-
-			db := database.GetDB()
-
-			// Fetch the device by ID
-			var device models.Device
-			if err := db.Where("id = ?", req.DeviceID).First(&device).Error; err != nil {
-				log.Printf("[DB] Device not found: %d\n", req.DeviceID)
-				continue
-			}
-
-			// Skip if already ON
-			if device.State == "ON" {
-				log.Printf("[State] Device %d already ON. Skipping.\n", req.DeviceID)
-				continue
-			}
-
-			// Create a new device session
-			session := models.DeviceSession{
-				UserID:   uint(req.UserID),
-				DeviceID: uint(req.DeviceID),
-			}
-
-			if err := db.Create(&session).Error; err != nil {
-				log.Printf("[DB] Failed to create device session for User %d | Device %d: %v\n", req.UserID, req.DeviceID, err)
-				continue
-			}
-
-			// Publish ON command to device MQTT broker
-			mqtt.Publish("motor/control", "on") // Send ON command
-
-			// Turn ON the device
-			if err := db.Model(&device).Update("state", "ON").Error; err != nil {
-				log.Printf("[DB] Failed to update device state to ON.%d\n", req.DeviceID)
-				continue
-			}
-
-			log.Printf("[State] Device %d turned ON\n", req.DeviceID)
-
-			// Log ON state change
-			if err := db.Create(&models.DeviceLog{
-				ChangedAt: time.Now(),
-				State:     "ON",
-				Duration:  &req.Duration, // Will be set when device turns OFF
-				SessionID: session.ID,    // Link to the session
-			}).Error; err != nil {
-				log.Printf("[Log] Failed to create ON log for device %d\n", req.DeviceID)
-			} else {
-				log.Printf("[Log] ON state logged for device %d\n", req.DeviceID)
-			}
-
-			log.Printf("[State] Device %d will remain ON for %v\n", req.DeviceID, req.Duration)
-
-			// Keep the device ON for specified duration
-			time.Sleep(req.Duration)
-
-			// Publish OFF command to device MQTT broker
-			mqtt.Publish("motor/control", "off") // Send OFF command
-
-			// Turn OFF the device
-			if err := db.Model(&device).Update("state", "OFF").Error; err != nil {
-				log.Printf("[DB] Failed to turn OFF device %d\n", req.DeviceID)
-				continue
-			}
-			log.Printf("[State] Device %d turned OFF after %v\n", req.DeviceID, req.Duration)
-
-			// Log OFF state change with duration
-			if err := db.Create(&models.DeviceLog{
-				ChangedAt: time.Now(),
-				State:     "OFF",
-				// Duration:  &req.Duration, // How long it was ON
-				SessionID: session.ID, // Link to the session
-			}).Error; err != nil {
-				log.Printf("[Log] Failed to create OFF log for device %d\n", req.DeviceID)
-			} else {
-				log.Printf("[Log] OFF state logged for device %d (was ON for %v)\n", req.DeviceID, req.Duration)
-			}
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[Panic] Device activator recovered: %v", r)
 		}
 	}()
+
+	for req := range deviceQueue {
+		log.Printf("[Queue] Processing request for User %d | Device %d | Duration %v\n", req.UserID, req.DeviceID, req.Duration)
+
+		// Reset quota every 24 hours
+		if time.Now().After(quotaResetTime) {
+			deviceQuotaMutex.Lock()
+			totalUsageTime = 0
+			quotaResetTime = time.Now().Add(24 * time.Hour)
+			deviceQuotaMutex.Unlock()
+			log.Println("[Quota] Daily quota has been reset")
+		}
+
+		// Check if this request exceeds daily quota
+		deviceQuotaMutex.Lock()
+		if req.Duration+totalUsageTime > deviceQuota {
+			deviceQuotaMutex.Unlock()
+			log.Printf("[Quota] Quota exceeded for User %d. Skipping request.\n", req.UserID)
+			continue
+		}
+		totalUsageTime += req.Duration
+		deviceQuotaMutex.Unlock()
+
+		db := database.GetDB()
+
+		// Fetch the device by ID
+		var device models.Device
+		if err := db.Where("id = ?", req.DeviceID).First(&device).Error; err != nil {
+			log.Printf("[DB] Device not found: %d\n", req.DeviceID)
+			continue
+		}
+
+		// Skip if already ON
+		if device.State == "ON" {
+			log.Printf("[State] Device %d already ON. Skipping.\n", req.DeviceID)
+			continue
+		}
+
+		// Create a new device session
+		session := models.DeviceSession{
+			UserID:   uint(req.UserID),
+			DeviceID: uint(req.DeviceID),
+		}
+
+		if err := db.Create(&session).Error; err != nil {
+			log.Printf("[DB] Failed to create device session for User %d | Device %d: %v\n", req.UserID, req.DeviceID, err)
+			continue
+		}
+
+		// Publish ON command to device MQTT broker
+		mqtt.Publish("motor/control", "on") // Send ON command
+
+		// Turn ON the device
+		if err := db.Model(&device).Update("state", "ON").Error; err != nil {
+			log.Printf("[DB] Failed to update device state to ON.%d\n", req.DeviceID)
+			continue
+		}
+
+		log.Printf("[State] Device %d turned ON\n", req.DeviceID)
+
+		// Log ON state change
+		if err := db.Create(&models.DeviceLog{
+			ChangedAt: time.Now(),
+			State:     "ON",
+			Duration:  &req.Duration, // Will be set when device turns OFF
+			SessionID: session.ID,    // Link to the session
+		}).Error; err != nil {
+			log.Printf("[Log] Failed to create ON log for device %d\n", req.DeviceID)
+		} else {
+			log.Printf("[Log] ON state logged for device %d\n", req.DeviceID)
+		}
+
+		log.Printf("[State] Device %d will remain ON for %v\n", req.DeviceID, req.Duration)
+
+		// Keep the device ON for specified duration
+		time.Sleep(req.Duration)
+
+		// Publish OFF command to device MQTT broker
+		mqtt.Publish("motor/control", "off") // Send OFF command
+
+		// Turn OFF the device
+		if err := db.Model(&device).Update("state", "OFF").Error; err != nil {
+			log.Printf("[DB] Failed to turn OFF device %d\n", req.DeviceID)
+			continue
+		}
+		log.Printf("[State] Device %d turned OFF after %v\n", req.DeviceID, req.Duration)
+
+		// Log OFF state change with duration
+		if err := db.Create(&models.DeviceLog{
+			ChangedAt: time.Now(),
+			State:     "OFF",
+			// Duration:  &req.Duration, // How long it was ON
+			SessionID: session.ID, // Link to the session
+		}).Error; err != nil {
+			log.Printf("[Log] Failed to create OFF log for device %d\n", req.DeviceID)
+		} else {
+			log.Printf("[Log] OFF state logged for device %d (was ON for %v)\n", req.DeviceID, req.Duration)
+		}
+	}
 }
 
 // This is the Gin route handler which enqueues the request into the activator queue
 func DeviceHandler(c *gin.Context) {
-	// Ensure the device activator starts only once in the application's lifetime
-	once.Do(startDeviceActivator)
+	once.Do(func() {
+		go startDeviceActivator()
+	})
 
 	// Extract user ID from JWT context (set by AuthMiddleware)
 	userID, exists := c.Get("userID")
