@@ -11,6 +11,7 @@ import (
 	"github.com/musabgulfam/pumplink-backend/models"
 	"github.com/musabgulfam/pumplink-backend/mqtt"
 	wsmanager "github.com/musabgulfam/pumplink-backend/realtime"
+	deviceService "github.com/musabgulfam/pumplink-backend/services"
 
 	mqttlib "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gin-gonic/gin"
@@ -68,6 +69,10 @@ func main() {
 		wsmanager.Broadcast(payload)
 	})
 
+	// Initialize and start the device service
+	deviceService := deviceService.NewDeviceService()
+	deviceService.StartActivator()
+
 	// Step 5: Initialize the HTTP server using Gin framework
 	r := gin.Default()
 
@@ -100,11 +105,12 @@ func main() {
 				})
 			})
 
-			protected.POST("/activate", middleware.RoleMiddleware(models.RoleUser, models.RoleAdmin), handlers.DeviceHandler) // Activate a device with a duration
+			protected.POST("/activate", middleware.RoleMiddleware(models.RoleUser, models.RoleAdmin), handlers.DeviceHandler(deviceService)) // Activate a device with a duration
 
 			protected.GET("device/:id/status", handlers.DeviceStatusHandler)
-		}
 
+			protected.POST("/device/:id/force-shutdown", middleware.RoleMiddleware(models.RoleAdmin), handlers.ForceShutdownHandler(deviceService))
+		}
 		// Step 9: Start the HTTP server
 		// This begins listening for incoming HTTP requests on the specified port
 		// The server will run indefinitely until manually stopped or an error occurs

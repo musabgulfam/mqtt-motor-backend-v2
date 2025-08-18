@@ -1,6 +1,6 @@
-# MQTT Motor Backend - Device Management Complete
+# MQTT Device Backend - Device Management Complete
 
-A Go backend server for MQTT motor control with incremental development. This project is built step-by-step, with each phase adding new features while maintaining clean, well-documented code.
+A Go backend server for MQTT device control with incremental development. This project is built step-by-step, with each phase adding new features while maintaining clean, well-documented code.
 
 ## 🎯 Current Phase: Device Session Management ✅
 
@@ -65,7 +65,7 @@ pumplink-backend/
 │   └── database.go      # 🗄️  Database connection and setup
 ├── models/
 │   ├── user.go          # 👤 User model with password hashing
-│   ├── device.go        # 🔧 Device model for motor control
+│   ├── device.go        # 🔧 Device model for device control
 │   ├── deviceActivation.go # 📊 Device activation logging
 │   └── deviceLog.go     # 📝 Device state change logging
 ├── handlers/
@@ -112,7 +112,7 @@ go run main.go
 
 You should see output like:
 ```
-2025/08/04 11:57:58 Starting MQTT Motor Backend on port 8080
+2025/08/04 11:57:58 Starting MQTT Device Backend on port 8080
 2025/08/04 11:57:58 Database connected successfully
 2025/08/04 11:57:58 Running in debug mode
 [GIN-debug] Listening and serving HTTP on :8080
@@ -130,7 +130,7 @@ Response:
 ```json
 {
   "status": "ok",
-  "message": "MQTT Motor Backend is running"
+  "message": "MQTT Device Backend is running"
 }
 ```
 
@@ -270,7 +270,7 @@ Our application uses environment variables for configuration. All variables are 
 | `JWT_SECRET`  | `supersecret`            | Secret for JWT token signing       | `my-super-secret-key-123`      |
 | `PORT`        | `8080`                   | HTTP server port                   | `3000`                         |
 | `DEBUG_MODE`  | `true`                   | Enable debug logging               | `false`                        |
-| `DAILY_QUOTA` | `1h`                     | Daily motor usage limit            | `2h30m`                        |
+| `DAILY_QUOTA` | `1h`                     | Daily device usage limit            | `2h30m`                        |
 | `MAX_RETRIES` | `3`                      | Maximum retry attempts             | `5`                            |
 
 ### Setting Environment Variables
@@ -299,67 +299,42 @@ export JWT_SECRET="my-secret-key"
 export DEBUG_MODE="false"
 ```
 
-## 🏗️ Architecture Overview
+## 🏗️ What We've Built
 
-### Current Architecture
-```
-┌─────────────────┐
-│   Client App    │  ← HTTP requests (REST API)
-│  (Web/Mobile)   │
-└─────────────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Gin HTTP       │  ← Web server with routing
-│    Server       │
-└─────────────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Middleware    │  ← JWT authentication
-│   (Auth)        │
-└─────────────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Handlers      │  ← Business logic
-│   (User/Device) │
-└─────────────────┘
-         │
-         ▼
-┌─────────────────┐    ┌─────────────────┐
-│ PostgreSQL      │    │  Background     │  ← Asynchronous
-│   Database      │    │   Processor     │    device control
-└─────────────────┘    └─────────────────┘
-         │                       │
-         ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐
-│   Device        │    │   MQTT Broker   │  ← Real-time
-│   State         │    │   (Phase 4)     │    communication
-└─────────────────┘    └─────────────────┘
-```
+- **Robust User Authentication**
+  - JWT-based authentication and secure password hashing
+  - Registration and login endpoints
+  - Middleware for protected routes
 
-### How It Works
+- **Device Management**
+  - Activate and deactivate devices via MQTT
+  - Device state tracking and status endpoint
+  - Quota management: daily usage limits per user
 
-1. **Client Request**: A client sends an HTTP request with JWT token
-2. **Gin Router**: Routes the request to appropriate handler
-3. **Middleware**: JWT authentication for protected routes
-4. **Handler Processing**: Business logic (device activation, etc.)
-5. **Queue System**: Device requests are queued for background processing
-6. **Background Processing**: Asynchronous device control with quota management
-7. **Database Operations**: Device state and activation logging
-8. **Response**: Immediate JSON response with queue status
+- **Session & Audit Logging**
+  - Each activation creates a session, linking ON/OFF events and durations
+  - All device state changes and admin actions are logged for auditability
 
-### Key Technologies
+- **Real-Time Communication**
+  - WebSocket endpoint for live device updates
+  - WebSocket authentication using JWT
+  - Only authenticated users can subscribe to real-time events
 
-- **Gin**: High-performance HTTP web framework for Go
-- **GORM**: Object-Relational Mapping for database operations
-- **PostgreSQL**: Powerful, open-source object-relational database system
-- **JWT**: JSON Web Tokens for authentication
-- **bcrypt**: Secure password hashing
-- **godotenv**: Environment variable management
-- **Goroutines**: Concurrent background processing
-- **Channels**: Thread-safe communication between components
+- **Role-Based Access Control (RBAC)**
+  - Roles: `pending`, `user`, `admin`
+  - Only approved users can activate devices
+  - Only admins can force-shutdown any device
+
+- **Admin Controls**
+  - Admin endpoint to forcefully stop any device activation at any time
+  - All admin actions are logged
+
+- **Extensible, Modular Architecture**
+  - Business logic separated into service layer for maintainability and testability
+  - Clean API versioning (`/api/v1/`)
+  - Ready for scaling and adding new device types or features
+
+---
 
 ## 🔄 Next Phases
 
@@ -423,3 +398,17 @@ When adding new features:
 ## 📄 License
 
 MIT License - feel free to use this code for
+
+---
+
+## 🆕 Recent Upgrades
+
+### 2025-08-14
+
+- **feat:** Add device status endpoint (`GET /api/device/:id/status`)
+- **feat:** Improved WebSocket authentication (JWT required for real-time updates)
+- **feat:** Role-Based Access Control (RBAC) for protected endpoints (`pending`, `user`, `admin`)
+- **feat:** Admin force-shutdown endpoint (`POST /api/v1/admin/device/:id/force-shutdown`)
+- **refactor:** Device activation logic moved to a service layer for testability and scalability
+- **fix:** Device activation requests are blocked if the device is already active
+- **infra:** All business logic is now modular and ready for future features
