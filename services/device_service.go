@@ -9,7 +9,6 @@ import (
 
 	"github.com/musabgulfam/pumplink-backend/database"
 	"github.com/musabgulfam/pumplink-backend/models"
-	"github.com/musabgulfam/pumplink-backend/mqtt"
 )
 
 type DeviceService struct {
@@ -127,7 +126,7 @@ func (ds *DeviceService) activatorLoop() {
 		}
 
 		// Publish ON command to device MQTT broker
-		mqtt.Publish("motor/control", "on") // Send ON command
+		Publish(MQTTTopicDeviceControl, "on") // Send ON command
 
 		// Turn ON the device
 		if err := db.Model(&device).Update("state", "ON").Error; err != nil {
@@ -171,7 +170,7 @@ func (ds *DeviceService) activatorLoop() {
 		ds.activeActivationsMu.Unlock()
 
 		// Publish OFF command to device MQTT broker
-		mqtt.Publish("motor/control", "off") // Send OFF command
+		Publish(MQTTTopicDeviceControl, "off") // Send OFF command
 
 		// Turn OFF the device
 		if err := db.Model(&device).Update("state", "OFF").Error; err != nil {
