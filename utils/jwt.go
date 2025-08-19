@@ -45,6 +45,5 @@ func ValidateJWT(tokenStr string) (string, error) {
 	}
 	userID := fmt.Sprintf("%.0f", userIDFloat)
 
-	log.Printf("[JWT] Token valid for user: %s", userID)
 	return userID, nil
 }

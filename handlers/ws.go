@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	wsmanager "github.com/musabgulfam/pumplink-backend/realtime"
+	wsmanager "github.com/musabgulfam/pumplink-backend/services"
 	"github.com/musabgulfam/pumplink-backend/utils"
 )
 
@@ -15,41 +15,40 @@ var upgrader = websocket.Upgrader{
 }
 
 func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := upgrader.Upgrade(w, r, nil) // Upgrade HTTP connection to WebSocket
 	if err != nil {
-		fmt.Println("WebSocket upgrade error:", err)
+		log.Printf("WebSocket upgrade error: %v\n", err)
 		return
 	}
 	defer conn.Close()
 
-	// Expect the first message to be the JWT token
-	_, msg, err := conn.ReadMessage()
+	// 1. Read the first message (expecting JWT)
+	_, jwtMsg, err := conn.ReadMessage()
 	if err != nil {
-		log.Println("Failed to read auth token:", err)
-		return
-	}
-	token := string(msg)
-
-	_, err = utils.ValidateJWT(token)
-	if err != nil {
-		log.Println("Invalid token, closing connection")
-		closeMsg := websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "Unauthorized: Invalid token")
-		conn.WriteMessage(websocket.CloseMessage, closeMsg)
-		conn.Close()
-		log.Println("Connection closed due to invalid token")
+		log.Printf("Failed to read JWT from client: %v\n", err)
 		return
 	}
 
-	wsmanager.AddClient(conn)          // Add the new client to the manager
+	// 2. Validate JWT (implement your own validation logic)
+	_, err = utils.ValidateJWT(string(jwtMsg))
+	if err != nil {
+		log.Printf("Invalid JWT: %v\n", err)
+		conn.WriteMessage(websocket.TextMessage, []byte("unauthorized"))
+		return
+	}
+
+	// 3. Add client to manager and send latest status
+	wsmanager.AddClient(conn)
 	defer wsmanager.RemoveClient(conn) // Ensure client is removed on disconnect
-	fmt.Println("Client connected:", conn.RemoteAddr())
+	fmt.Printf("[WEBSOCKET] Client connected: %v\n", conn.RemoteAddr())
 
+	// 4. Now enter your main read loop (if needed)
 	for {
-		_, _, err := conn.ReadMessage() // Keep connection alive
-		if err != nil {
-			wsmanager.RemoveClient(conn) // Remove client on error
-			fmt.Println("Client disconnected:", conn.RemoteAddr())
+		if _, _, err := conn.ReadMessage(); err != nil {
+			wsmanager.RemoveClient(conn)
+			log.Printf("[WEBSOCKET] read error: %v\n", err)
 			break
 		}
 	}
+	// wsmanager.Broadcast(fmt.Sprintf("New client connected: %v", conn.RemoteAddr().String())) // Notify all clients
 }

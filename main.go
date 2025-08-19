@@ -9,11 +9,9 @@ import (
 	"github.com/musabgulfam/pumplink-backend/handlers"
 	"github.com/musabgulfam/pumplink-backend/middleware"
 	"github.com/musabgulfam/pumplink-backend/models"
-	"github.com/musabgulfam/pumplink-backend/mqtt"
-	wsmanager "github.com/musabgulfam/pumplink-backend/realtime"
+	"github.com/musabgulfam/pumplink-backend/services"
 	deviceService "github.com/musabgulfam/pumplink-backend/services"
 
-	mqttlib "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -52,22 +50,13 @@ func main() {
 	}
 	log.Println("Database connected successfully")
 
-	if err := mqtt.Connect(fmt.Sprintf("%s://%s:%d", cfg.MQTTProtocol, cfg.MQTTHost, cfg.MQTTPort)); err != nil { // Connect to the MQTT broker
-		log.Fatal("MQTT connection error: ", err) // If error, log and exit
+	if err := services.Connect(fmt.Sprintf("%s://%s:%d", cfg.MQTTProtocol, cfg.MQTTHost, cfg.MQTTPort)); err != nil {
+		log.Fatal("MQTT connection error: ", err)
 	}
 	log.Println("Connected to MQTT broker successfully")
 
-	// Subscribe to all device status topics
-	mqtt.Subscribe("device/+/status", func(client mqttlib.Client, msg mqttlib.Message) {
-		topic := msg.Topic()
-		payload := string(msg.Payload())
-
-		log.Printf("MQTT message: %s -> %s\n", topic, payload)
-
-		// Here we would figure out which user this device belongs to (Start here 12th August 2025)
-		// userID := findUserByDevice(topic)
-		wsmanager.Broadcast(payload)
-	})
+	// Subscribe to all device status topics (encapsulated)
+	services.SubscribeToDeviceStatus()
 
 	// Initialize and start the device service
 	deviceService := deviceService.NewDeviceService()
