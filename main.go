@@ -9,7 +9,8 @@ import (
 	"github.com/musabgulfam/pumplink-backend/handlers"
 	"github.com/musabgulfam/pumplink-backend/middleware"
 	"github.com/musabgulfam/pumplink-backend/models"
-	"github.com/musabgulfam/pumplink-backend/mqtt"
+	"github.com/musabgulfam/pumplink-backend/services"
+	deviceService "github.com/musabgulfam/pumplink-backend/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -49,13 +50,17 @@ func main() {
 	}
 	log.Println("Database connected successfully")
 
-	if err := mqtt.Connect(fmt.Sprintf("%s://%s:%d", cfg.MQTTProtocol, cfg.MQTTHost, cfg.MQTTPort)); err != nil {
+	if err := services.Connect(fmt.Sprintf("%s://%s:%d", cfg.MQTTProtocol, cfg.MQTTHost, cfg.MQTTPort)); err != nil {
 		log.Fatal("MQTT connection error: ", err)
 	}
 	log.Println("Connected to MQTT broker successfully")
 
 	// Subscribe to all device status topics (encapsulated)
-	mqtt.SubscribeToDeviceStatus()
+	services.SubscribeToDeviceStatus()
+
+	// Initialize and start the device service
+	deviceService := deviceService.NewDeviceService()
+	deviceService.StartActivator()
 
 	// Step 5: Initialize the HTTP server using Gin framework
 	r := gin.Default()
@@ -89,11 +94,12 @@ func main() {
 				})
 			})
 
-			protected.POST("/activate", middleware.RoleMiddleware(models.RoleUser, models.RoleAdmin), handlers.DeviceHandler) // Activate a device with a duration
+			protected.POST("/activate", middleware.RoleMiddleware(models.RoleUser, models.RoleAdmin), handlers.DeviceHandler(deviceService)) // Activate a device with a duration
 
 			protected.GET("device/:id/status", handlers.DeviceStatusHandler)
-		}
 
+			protected.POST("/device/:id/force-shutdown", middleware.RoleMiddleware(models.RoleAdmin), handlers.ForceShutdownHandler(deviceService))
+		}
 		// Step 9: Start the HTTP server
 		// This begins listening for incoming HTTP requests on the specified port
 		// The server will run indefinitely until manually stopped or an error occurs

@@ -1,6 +1,6 @@
 // client.go - MQTT client connection and helpers
 
-package mqtt // Declares the package name
+package services
 
 import ( // Import required packages
 	"crypto/tls"
