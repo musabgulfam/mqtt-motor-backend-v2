@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/musabgulfam/pumplink-backend/database"
+	"github.com/musabgulfam/pumplink-backend/models"
 	expo "github.com/oliveroneill/exponent-server-sdk-golang/sdk"
 )
 
@@ -32,6 +34,24 @@ func SendPushNotification(token, title, body string, data map[string]interface{}
 	if err != nil {
 		log.Printf("Expo push error: %v", err)
 		return err
+	}
+	return nil
+}
+
+func SendPushNotificationToAll(title, body string, data map[string]interface{}) error {
+	var users []models.User
+	if err := database.DB.Where("expo_push_token != ''").Find(&users).Error; err != nil {
+		return err
+	}
+
+	for _, user := range users {
+		if user.ExpoPushToken == "" {
+			continue
+		}
+		err := SendPushNotification(user.ExpoPushToken, title, body, data)
+		if err != nil {
+			log.Printf("Failed to send notification to user %d: %v", user.ID, err)
+		}
 	}
 	return nil
 }

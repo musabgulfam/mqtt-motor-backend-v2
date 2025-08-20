@@ -20,13 +20,19 @@ func RegisterPushToken(c *gin.Context) {
 		return
 	}
 
-	u, ok := userID.(models.User)
+	id, ok := userID.(uint)
 	if !ok {
-		c.JSON(500, gin.H{"error": "invalid user"})
+		c.JSON(500, gin.H{"error": "invalid user id type"})
+		return
+	}
+
+	var u models.User
+	if err := database.DB.First(&u, id).Error; err != nil {
+		c.JSON(404, gin.H{"error": "user not found"})
 		return
 	}
 	u.ExpoPushToken = req.Token
-	if err := database.DB.Save(u).Error; err != nil {
+	if err := database.DB.Save(&u).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Failed to save token"})
 		return
 	}

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -150,6 +151,17 @@ func (ds *DeviceService) activatorLoop() {
 
 		log.Printf("[State] Device %d will remain ON for %v\n", req.DeviceID, req.Duration)
 
+		// Send push notification
+		SendPushNotificationToAll(
+			"Motor Activated",
+			fmt.Sprintf("Device %d is now ON for %v minutes.", req.DeviceID, req.Duration.Minutes()),
+			map[string]interface{}{
+				"device_id": req.DeviceID,
+				"action":    "on",
+				"duration":  req.Duration.Minutes(),
+			},
+		)
+
 		ctx, cancel := context.WithCancel(context.Background())
 
 		// Register this activation
@@ -192,7 +204,7 @@ func (ds *DeviceService) activatorLoop() {
 	}
 }
 
-// Optional: Add a method for force-off (admin)
+// Method for force-shutdown (admin)
 func (ds *DeviceService) ForceShutdown(deviceID uint) bool {
 	ds.activeActivationsMu.Lock()
 	cancel, exists := ds.activeActivations[deviceID]
