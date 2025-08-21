@@ -13,4 +13,5 @@ type DeviceLog struct {
 	Duration      *time.Duration // optional: how long it stayed in that state (nullable)
 	SessionID     uint           `gorm:"not null"` // Foreign key for DeviceSession
 	DeviceSession DeviceSession  `gorm:"foreignKey:SessionID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
+	Reason        string
 }
