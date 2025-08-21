@@ -39,11 +39,14 @@ func DeviceStatusHandler(c *gin.Context) {
 		return
 	}
 
-	activeUntil := time.Until(latestLog.CreatedAt.Add(*latestLog.Duration))
-
 	log.Printf("duration: %v", latestLog.Duration)
 	log.Printf("log created at: %v", latestLog.CreatedAt)
 
+	activeUntilTime := latestLog.CreatedAt.Add(*latestLog.Duration)
 	// Return the device status as JSON
-	c.JSON(http.StatusOK, gin.H{"device_id": deviceID, "status": deviceModel.State, "active_until": time.Unix(int64(activeUntil.Seconds()), int64(activeUntil.Nanoseconds())).Format(time.RFC3339)})
+	c.JSON(http.StatusOK, gin.H{
+		"device_id":    deviceID,
+		"status":       deviceModel.State,
+		"active_until": activeUntilTime.Format(time.RFC3339),
+	})
 }
