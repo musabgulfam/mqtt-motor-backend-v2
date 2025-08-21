@@ -9,24 +9,14 @@ import (
 	expo "github.com/oliveroneill/exponent-server-sdk-golang/sdk"
 )
 
-func SendPushNotification(token, title, body string, data map[string]interface{}) error {
+func SendPushNotification(token, title, body string, data map[string]string) error {
 	client := expo.NewPushClient(nil)
-
-	// Convert map[string]interface{} to map[string]string
-	stringData := make(map[string]string)
-	for k, v := range data {
-		if str, ok := v.(string); ok {
-			stringData[k] = str
-		} else {
-			stringData[k] = fmt.Sprintf("%v", v)
-		}
-	}
 
 	msg := expo.PushMessage{
 		To:       []expo.ExponentPushToken{expo.ExponentPushToken(token)},
 		Title:    title,
 		Body:     body,
-		Data:     stringData,
+		Data:     data,
 		Sound:    "default",
 		Priority: expo.DefaultPriority,
 	}
@@ -38,7 +28,7 @@ func SendPushNotification(token, title, body string, data map[string]interface{}
 	return nil
 }
 
-func SendPushNotificationToAll(title, body string, data map[string]interface{}) error {
+func SendPushNotificationToAll(title, body string, data map[string]string) error {
 	var users []models.User
 	if err := database.DB.Where("expo_push_token != ''").Find(&users).Error; err != nil {
 		return err
@@ -54,4 +44,22 @@ func SendPushNotificationToAll(title, body string, data map[string]interface{}) 
 		}
 	}
 	return nil
+}
+
+// New helper to send notification for a device by ID
+func SendDevicePushNotificationToAll(deviceID uint, body string, data map[string]string) {
+	go func() {
+		var device models.Device
+		if err := database.DB.First(&device, deviceID).Error; err != nil {
+			log.Printf("Failed to fetch device %d: %v", deviceID, err)
+			return
+		}
+		title := device.Name
+		if title == "" {
+			title = fmt.Sprintf("Device %d", deviceID)
+		}
+		if err := SendPushNotificationToAll(title, body, data); err != nil {
+			log.Printf("Failed to send notification to all: %v", err)
+		}
+	}()
 }

@@ -135,8 +135,6 @@ func (ds *DeviceService) activatorLoop() {
 			continue
 		}
 
-		log.Printf("[State] Device %d turned ON\n", req.DeviceID)
-
 		// Log ON state change
 		if err := db.Create(&models.DeviceLog{
 			ChangedAt: time.Now(),
@@ -152,13 +150,13 @@ func (ds *DeviceService) activatorLoop() {
 		log.Printf("[State] Device %d will remain ON for %v\n", req.DeviceID, req.Duration)
 
 		// Send push notification
-		SendPushNotificationToAll(
-			"Motor Activated",
-			fmt.Sprintf("Device %d is now ON for %v minutes.", req.DeviceID, req.Duration.Minutes()),
-			map[string]interface{}{
-				"device_id": req.DeviceID,
+		SendDevicePushNotificationToAll(
+			req.DeviceID,
+			fmt.Sprintf("This device is now ON for %v minutes.", req.Duration.Minutes()),
+			map[string]string{
+				"device_id": fmt.Sprintf("%d", req.DeviceID),
 				"action":    "on",
-				"duration":  req.Duration.Minutes(),
+				"duration":  fmt.Sprintf("%f", req.Duration.Minutes()),
 			},
 		)
 
@@ -169,12 +167,13 @@ func (ds *DeviceService) activatorLoop() {
 		ds.activeActivations[req.DeviceID] = cancel
 		ds.activeActivationsMu.Unlock()
 
+		var shutdownTime time.Time
 		select {
 		case <-time.After(req.Duration):
-			// Normal completion
 		case <-ctx.Done():
 			log.Printf("[Force] Activation for device %d cancelled by admin", req.DeviceID)
 		}
+		shutdownTime = time.Now() // Accurate shutdown time
 
 		// Clean up after activation
 		ds.activeActivationsMu.Lock()
@@ -189,7 +188,7 @@ func (ds *DeviceService) activatorLoop() {
 			log.Printf("[DB] Failed to turn OFF device %d\n", req.DeviceID)
 			continue
 		}
-		log.Printf("[State] Device %d turned OFF after %v\n", req.DeviceID, req.Duration)
+		log.Printf("[State] Device %d turned OFF at %s after %v\n", req.DeviceID, shutdownTime.Format("03:04 PM"), req.Duration)
 
 		// Log OFF state change with duration
 		if err := db.Create(&models.DeviceLog{
@@ -199,7 +198,7 @@ func (ds *DeviceService) activatorLoop() {
 		}).Error; err != nil {
 			log.Printf("[Log] Failed to create OFF log for device %d\n", req.DeviceID)
 		} else {
-			log.Printf("[Log] OFF state logged for device %d (was ON for %v)\n", req.DeviceID, req.Duration)
+			log.Printf("[Log] OFF state logged for device %d (was ON for %v)\n", req.DeviceID, shutdownTime.Format("03:04 PM"))
 		}
 	}
 }
@@ -211,6 +210,17 @@ func (ds *DeviceService) ForceShutdown(deviceID uint) bool {
 	ds.activeActivationsMu.Unlock()
 	if exists {
 		cancel()
+		// Send push notification
+		SendDevicePushNotificationToAll(
+			deviceID,
+			fmt.Sprintf(
+				"This device has been force shut down at %s by admin",
+				time.Now().Format("03:04 PM"),
+			),
+			map[string]string{
+				"action": "off",
+			},
+		)
 		return true
 	}
 	return false
