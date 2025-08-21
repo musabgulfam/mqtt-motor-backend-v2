@@ -167,13 +167,18 @@ func (ds *DeviceService) activatorLoop() {
 		ds.activeActivations[req.DeviceID] = cancel
 		ds.activeActivationsMu.Unlock()
 
-		var shutdownTime time.Time
+		startTime := time.Now()
+		var shutdownReason string
+
 		select {
 		case <-time.After(req.Duration):
+			shutdownReason = "completed"
 		case <-ctx.Done():
+			shutdownReason = "force"
 			log.Printf("[Force] Activation for device %d cancelled by admin", req.DeviceID)
 		}
-		shutdownTime = time.Now() // Accurate shutdown time
+		shutdownTime := time.Now()
+		actualDuration := shutdownTime.Sub(startTime)
 
 		// Clean up after activation
 		ds.activeActivationsMu.Lock()
@@ -190,15 +195,17 @@ func (ds *DeviceService) activatorLoop() {
 		}
 		log.Printf("[State] Device %d turned OFF at %s after %v\n", req.DeviceID, shutdownTime.Format("03:04 PM"), req.Duration)
 
-		// Log OFF state change with duration
+		// Log OFF state change with duration and reason
 		if err := db.Create(&models.DeviceLog{
 			ChangedAt: time.Now(),
 			State:     "OFF",
+			Duration:  &actualDuration,
 			SessionID: session.ID,
+			Reason:    shutdownReason, // <-- Set reason here
 		}).Error; err != nil {
 			log.Printf("[Log] Failed to create OFF log for device %d\n", req.DeviceID)
 		} else {
-			log.Printf("[Log] OFF state logged for device %d (was ON for %v)\n", req.DeviceID, shutdownTime.Format("03:04 PM"))
+			log.Printf("[Log] OFF state logged for device %d (was ON for %v, reason: %s)\n", req.DeviceID, actualDuration, shutdownReason)
 		}
 	}
 }

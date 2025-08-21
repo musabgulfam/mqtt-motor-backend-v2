@@ -9,32 +9,54 @@ A Go backend server for MQTT device control with incremental development. This p
 ### What We've Built
 
 #### ✅ **Foundation (Phase 1)**
-- **Configuration Management**: Environment variables with sensible defaults
-- **Database Connection**: PostgreSQL with GORM ORM
-- **HTTP Server**: Gin framework with health endpoint
-- **Project Structure**: Clean, modular architecture
+- **Configuration Management:** Environment variables with sensible defaults
+- **Database Connection:** PostgreSQL with GORM ORM
+- **HTTP Server:** Gin framework with health endpoint
+- **Project Structure:** Clean, modular architecture
 
 #### ✅ **User Authentication (Phase 2)**
-- **User Model**: Database schema with password hashing
-- **Registration**: `POST api/v1/register` endpoint with validation
-- **Login**: `POST api/v1/login` endpoint with JWT token generation
-- **Authentication Middleware**: JWT token validation for protected routes
-- **Environment Configuration**: `.env` file support with comprehensive settings
+- **User Model:** Database schema with password hashing
+- **Registration:** `POST /register` endpoint with validation
+- **Login:** `POST /login` endpoint with JWT token generation
+- **Authentication Middleware:** JWT token validation for protected routes
+- **Environment Configuration:** `.env` file support with comprehensive settings
 
 #### ✅ **Device Management (Phase 3)**
-- **Device Models**: Database schema for devices and activation logs
-- **Device Activation**: `POST /api/v1/activate` endpoint with queue system
-- **Asynchronous Processing**: Background goroutine for device control
-- **Quota Management**: Daily usage limits with thread-safe implementation
-- **Device State Management**: ON/OFF state tracking with database persistence
+- **Device Models:** Database schema for devices and activation logs
+- **Device Activation:** `POST /api/activate` endpoint with queue system
+- **Asynchronous Processing:** Background goroutine for device control
+- **Quota Management:** Daily usage limits with thread-safe implementation
+- **Device State Management:** ON/OFF state tracking with database persistence
 
 #### ✅ **MQTT Integration**
-- **MQTT Broker Connection**: Robust connection to MQTT broker for device control
+- **MQTT Broker Connection:** Robust connection to MQTT broker for device control
+- **Centralized MQTT Topics:** All MQTT topics are now constants and helper functions for clarity and maintainability
+- **Encapsulated MQTT Subscription:** All MQTT subscription logic is now in a dedicated service
 
-#### ✅ **Device Session Management (Phase 4)**
-- **Session Tracking**: Each device activation creates a session, linking ON/OFF events and durations
-- **Session Logs**: All state changes and durations are linked to session IDs for full traceability
-- **Auditability**: Enables detailed reporting and analysis of device usage
+#### ✅ **WebSocket Real-Time Updates**
+- **WebSocket Service:** Centralized, idiomatic WebSocket manager for broadcasting device status to clients
+- **JWT Authentication:** WebSocket connections require JWT authentication before joining the broadcast group
+- **Latest Status on Connect:** New clients receive the latest device status immediately upon connection
+
+#### ✅ **Device Session Management**
+- **Session Tracking:** Each device activation creates a session, linking ON/OFF events and durations
+- **Session Logs:** All state changes and durations are linked to session IDs for full traceability
+- **Auditability:** Enables detailed reporting and analysis of device usage
+
+#### ✅ **Admin**
+- **Admin Intervention:** Admins can forcefully shut down any device activation in progress via the `api/v1/device/:id/force-shutdown` endpoint.
+    - This endpoint is protected by JWT authentication and requires the user to have the `admin` role.
+    - When triggered, the backend cancels the device's activation context, immediately turning the device OFF regardless of the remaining scheduled duration.
+    - The shutdown event is logged in the database with a reason (`force`) and the exact timestamp.
+    - The device session is updated to reflect the actual ON duration up to the moment of shutdown.
+    - All admin actions are auditable for traceability and compliance.
+
+#### ✅ **Push Notifications**
+- **Expo Push Integration:** Mobile clients can register Expo push tokens
+- **Notification Service:** Sends push notifications on device activation (ON) events, with deduplication to avoid double notifications
+- **Device Name in Notification:** Device name is dynamically fetched and used as the notification title
+- **No OFF Notifications:** Notifications are only sent for ON events, not for OFF
+
 
 ---
 
