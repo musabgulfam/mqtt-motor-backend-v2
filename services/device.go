@@ -90,14 +90,13 @@ func (ds *DeviceService) activatorLoop() {
 			log.Println("[Quota] Daily quota has been reset")
 		}
 
-		// Check if this request exceeds daily quota
+		// Check if this request exceeds daily quota (using requested duration for check only)
 		ds.deviceQuotaMutex.Lock()
 		if req.Duration+ds.totalUsageTime > ds.deviceQuota {
 			ds.deviceQuotaMutex.Unlock()
 			log.Printf("[Quota] Quota exceeded for User %d. Skipping request.\n", req.UserID)
 			continue
 		}
-		ds.totalUsageTime += req.Duration
 		ds.deviceQuotaMutex.Unlock()
 
 		db := database.GetDB()
@@ -179,6 +178,11 @@ func (ds *DeviceService) activatorLoop() {
 		}
 		shutdownTime := time.Now()
 		actualDuration := shutdownTime.Sub(startTime)
+
+		// Deduct only the actual ON duration from quota
+		ds.deviceQuotaMutex.Lock()
+		ds.totalUsageTime += actualDuration
+		ds.deviceQuotaMutex.Unlock()
 
 		// Clean up after activation
 		ds.activeActivationsMu.Lock()
