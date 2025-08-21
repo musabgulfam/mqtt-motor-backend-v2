@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -40,7 +39,7 @@ func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	// 3. Add client to manager and send latest status
 	wsmanager.AddClient(conn)
 	defer wsmanager.RemoveClient(conn) // Ensure client is removed on disconnect
-	fmt.Printf("[WEBSOCKET] Client connected: %v\n", conn.RemoteAddr())
+	log.Printf("[WEBSOCKET] Client connected: %v\n", conn.RemoteAddr())
 
 	// 4. Now enter your main read loop (if needed)
 	for {

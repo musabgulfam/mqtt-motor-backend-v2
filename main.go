@@ -99,6 +99,8 @@ func main() {
 			protected.GET("device/:id/status", handlers.DeviceStatusHandler)
 
 			protected.POST("/device/:id/force-shutdown", middleware.RoleMiddleware(models.RoleAdmin), handlers.ForceShutdownHandler(deviceService))
+
+			protected.POST("/register-push-token", handlers.RegisterPushToken)
 		}
 		// Step 9: Start the HTTP server
 		// This begins listening for incoming HTTP requests on the specified port
