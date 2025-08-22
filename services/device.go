@@ -114,12 +114,17 @@ func (ds *DeviceService) activatorLoop() {
 			continue
 		}
 
-		// Create a new device session
+		// Create a new device session with intended duration and active until
+		startTime := time.Now()
+		intendedDuration := req.Duration.String()
+		activeUntil := startTime.Add(req.Duration)
 		session := models.DeviceSession{
-			UserID:   uint(req.UserID),
-			DeviceID: uint(req.DeviceID),
+			UserID:           req.UserID,
+			DeviceID:         req.DeviceID,
+			IntendedDuration: intendedDuration,
+			ActiveUntil:      activeUntil,
+			Reason:           "", // set as needed
 		}
-
 		if err := db.Create(&session).Error; err != nil {
 			log.Printf("[DB] Failed to create device session for User %d | Device %d: %v\n", req.UserID, req.DeviceID, err)
 			continue
@@ -136,9 +141,7 @@ func (ds *DeviceService) activatorLoop() {
 
 		// Log ON state change
 		if err := db.Create(&models.DeviceLog{
-			ChangedAt: time.Now(),
 			State:     "ON",
-			Duration:  &req.Duration,
 			SessionID: session.ID,
 		}).Error; err != nil {
 			log.Printf("[Log] Failed to create ON log for device %d\n", req.DeviceID)
@@ -166,7 +169,7 @@ func (ds *DeviceService) activatorLoop() {
 		ds.activeActivations[req.DeviceID] = cancel
 		ds.activeActivationsMu.Unlock()
 
-		startTime := time.Now()
+		startTime = time.Now()
 		var shutdownReason string
 
 		select {
@@ -199,17 +202,22 @@ func (ds *DeviceService) activatorLoop() {
 		}
 		log.Printf("[State] Device %d turned OFF at %s after %v\n", req.DeviceID, shutdownTime.Format("03:04 PM"), req.Duration)
 
-		// Log OFF state change with duration and reason
+		// Log OFF state change
 		if err := db.Create(&models.DeviceLog{
-			ChangedAt: time.Now(),
 			State:     "OFF",
-			Duration:  &actualDuration,
 			SessionID: session.ID,
-			Reason:    shutdownReason, // <-- Set reason here
 		}).Error; err != nil {
 			log.Printf("[Log] Failed to create OFF log for device %d\n", req.DeviceID)
 		} else {
 			log.Printf("[Log] OFF state logged for device %d (was ON for %v, reason: %s)\n", req.DeviceID, actualDuration, shutdownReason)
+		}
+
+		// Update DeviceSession with shutdown time and reason
+		if err := db.Model(&session).Updates(map[string]interface{}{
+			"ActiveUntil": shutdownTime.Format(time.RFC3339),
+			"Reason":      shutdownReason,
+		}).Error; err != nil {
+			log.Printf("[DB] Failed to update device session for device %d: %v\n", req.DeviceID, err)
 		}
 	}
 }
