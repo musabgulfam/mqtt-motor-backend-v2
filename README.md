@@ -28,22 +28,22 @@ A Go backend server for MQTT device control with incremental development. This p
 - **Quota Management:** Daily usage limits with thread-safe implementation
 - **Device State Management:** ON/OFF state tracking with database persistence
 
-#### ✅ **MQTT Integration**
+#### ✅ **MQTT Integration (Phase 4)**
 - **MQTT Broker Connection:** Robust connection to MQTT broker for device control
 - **Centralized MQTT Topics:** All MQTT topics are now constants and helper functions for clarity and maintainability
 - **Encapsulated MQTT Subscription:** All MQTT subscription logic is now in a dedicated service
 
-#### ✅ **WebSocket Real-Time Updates**
+#### ✅ **WebSocket Real-Time Updates (Phase 5)**
 - **WebSocket Service:** Centralized, idiomatic WebSocket manager for broadcasting device status to clients
 - **JWT Authentication:** WebSocket connections require JWT authentication before joining the broadcast group
 - **Latest Status on Connect:** New clients receive the latest device status immediately upon connection
 
-#### ✅ **Device Session Management**
+#### ✅ **Device Session Management (Phase 6)**
 - **Session Tracking:** Each device activation creates a session, linking ON/OFF events and durations
 - **Session Logs:** All state changes and durations are linked to session IDs for full traceability
 - **Auditability:** Enables detailed reporting and analysis of device usage
 
-#### ✅ **Admin**
+#### ✅ **Admin (Phase 7)**
 - **Admin Intervention:** Admins can forcefully shut down any device activation in progress via the `api/v1/device/:id/force-shutdown` endpoint.
     - This endpoint is protected by JWT authentication and requires the user to have the `admin` role.
     - When triggered, the backend cancels the device's activation context, immediately turning the device OFF regardless of the remaining scheduled duration.
@@ -51,7 +51,7 @@ A Go backend server for MQTT device control with incremental development. This p
     - The device session is updated to reflect the actual ON duration up to the moment of shutdown.
     - All admin actions are auditable for traceability and compliance.
 
-#### ✅ **Push Notifications**
+#### ✅ **Push Notifications (Phase 8)**
 - **Expo Push Integration:** Mobile clients can register Expo push tokens
 - **Notification Service:** Sends push notifications on device activation (ON) events, with deduplication to avoid double notifications
 - **Device Name in Notification:** Device name is dynamically fetched and used as the notification title
@@ -86,15 +86,23 @@ pumplink-backend/
 ├── database/
 │   └── database.go      # 🗄️  Database connection and setup
 ├── models/
-│   ├── user.go          # 👤 User model with password hashing
-│   ├── device.go        # 🔧 Device model for device control
-│   ├── deviceActivation.go # 📊 Device activation logging
-│   └── deviceLog.go     # 📝 Device state change logging
+│   ├── user.go              # 👤 User model with password hashing
+│   ├── device.go            # 🔧 Device model for device control
+│   ├── deviceSession.go     # ⏱️  Device session tracking (ON/OFF, duration, reason)
+│   └── deviceLog.go         # 📝 Device state change logging (ON/OFF events, session link)
 ├── handlers/
-│   ├── user.go          # 🔐 User registration and login handlers
-│   └── DeviceHandler.go # ⚡ Device activation with queue system
+│   ├── user.go              # 🔐 User registration and login handlers
+│   ├── device.go            # ⚡ Device activation and status handlers
+│   ├── deviceStatus.go      # 📊 Device status and analytics endpoints
+│   └── registerPushToken.go # 📲 Expo push token registration handler
+├── services/
+│   ├── device.go            # 🛠️  Device activation logic, queue, session management
+│   ├── mqtt.go              # 📡 MQTT broker integration and helpers
+│   ├── notification.go      # 🔔 Push notification service
+│   └── websocket.go         # 🌐 WebSocket real-time updates
 └── middleware/
-    └── auth.go          # 🛡️  JWT authentication middleware
+  ├── auth.go              # 🛡️  JWT authentication middleware
+  └── role.go              # 🏷️  Role-based access control
 ```
 
 ## 🚀 Installation & Setup

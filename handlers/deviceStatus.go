@@ -3,7 +3,6 @@ package handlers
 import (
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/musabgulfam/pumplink-backend/database"
@@ -28,25 +27,27 @@ func DeviceStatusHandler(c *gin.Context) {
 		return
 	}
 
-	// Find latest ON log entry for this device
+	// Find latest ON log entry for this device and join DeviceSession
 	var latestLog models.DeviceLog
 	if err := db.
+		Preload("DeviceSession").
 		Joins("JOIN device_sessions ON device_sessions.id = device_logs.session_id").
 		Where("device_sessions.device_id = ? AND device_logs.state = ?", deviceID, "ON").
-		Order("device_logs.changed_at DESC").
+		Order("device_logs.updated_at DESC").
 		First(&latestLog).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not fetch latest log"})
 		return
 	}
 
-	log.Printf("duration: %v", latestLog.Duration)
-	log.Printf("log created at: %v", latestLog.CreatedAt)
+	log.Printf("intended duration: %v", latestLog.DeviceSession.IntendedDuration)
+	log.Printf("active until: %v", latestLog.DeviceSession.ActiveUntil)
 
-	activeUntilTime := latestLog.CreatedAt.Add(*latestLog.Duration)
-	// Return the device status as JSON
+	// Return the device status as JSON using DeviceSession fields
 	c.JSON(http.StatusOK, gin.H{
-		"device_id":    deviceID,
-		"status":       deviceModel.State,
-		"active_until": activeUntilTime.Format(time.RFC3339),
+		"device_id":         deviceID,
+		"status":            deviceModel.State,
+		"active_until":      latestLog.DeviceSession.ActiveUntil,
+		"intended_duration": latestLog.DeviceSession.IntendedDuration,
+		"session_id":        latestLog.SessionID,
 	})
 }
