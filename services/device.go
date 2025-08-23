@@ -131,7 +131,7 @@ func (ds *DeviceService) activatorLoop() {
 		}
 
 		// Publish ON command to device MQTT broker
-		Publish(MQTTTopicDeviceControl, "on", 2) // Send ON command
+		Publish(MQTTTopicDeviceControl, "on", 2, true) // Send ON command
 
 		// Turn ON the device
 		if err := db.Model(&device).Update("state", "ON").Error; err != nil {
@@ -193,7 +193,7 @@ func (ds *DeviceService) activatorLoop() {
 		ds.activeActivationsMu.Unlock()
 
 		// Publish OFF command to device MQTT broker
-		Publish(MQTTTopicDeviceControl, "off", 2) // Send OFF command
+		Publish(MQTTTopicDeviceControl, "off", 2, true) // Send OFF command
 
 		// Turn OFF the device
 		if err := db.Model(&device).Update("state", "OFF").Error; err != nil {
