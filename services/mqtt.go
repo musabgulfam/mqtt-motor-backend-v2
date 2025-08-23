@@ -52,8 +52,8 @@ func Subscribe(topic string, callback mqttlib.MessageHandler) error { // Subscri
 	return nil // Success
 }
 
-func Publish(topic string, payload interface{}) error { // Publish a message to a topic
-	token := Client.Publish(topic, 0, false, payload) // Publish message
-	token.Wait()                                      // Wait for publish to complete
-	return token.Error()                              // Return error if any
+func Publish(topic string, payload interface{}, qos byte) error { // Publish a message to a topic
+	token := Client.Publish(topic, qos, false, payload) // Publish message
+	token.Wait()                                        // Wait for publish to complete
+	return token.Error()                                // Return error if any
 }
