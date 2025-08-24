@@ -1,4 +1,4 @@
-// client.go - MQTT client connection and helpers
+// mqtt.go - MQTT client connection and helpers
 
 package services
 
@@ -46,7 +46,7 @@ func Connect(broker string) error { // Connects to the MQTT broker
 }
 
 func Subscribe(topic string, callback mqttlib.MessageHandler) error { // Subscribe to a topic
-	if token := Client.Subscribe(topic, 0, callback); token.Wait() && token.Error() != nil { // Try to subscribe
+	if token := Client.Subscribe(topic, 2, callback); token.Wait() && token.Error() != nil { // Try to subscribe
 		return token.Error() // Return error if fails
 	}
 	return nil // Success

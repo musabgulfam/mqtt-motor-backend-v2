@@ -12,32 +12,39 @@ import (
 	"github.com/musabgulfam/pumplink-backend/models"
 )
 
+// DeviceService manages device activations, quota, and MQTT ACKs.
 type DeviceService struct {
-	deviceQueue         chan *DeviceRequest
-	deviceQuotaMutex    sync.Mutex
-	totalUsageTime      time.Duration
-	quotaResetTime      time.Time
-	deviceQuota         time.Duration
-	activeActivations   map[uint]context.CancelFunc
-	activeActivationsMu sync.Mutex
-	once                sync.Once
+	deviceQueue              chan *DeviceRequest
+	deviceQuotaMutex         sync.Mutex
+	totalUsageTime           time.Duration
+	quotaResetTime           time.Time
+	deviceQuota              time.Duration
+	activeActivations        map[uint]context.CancelFunc
+	activeActivationsMu      sync.Mutex
+	once                     sync.Once
+	acknowledgmentChannels   map[uint]chan struct{}
+	acknowledgmentChannelsMu sync.Mutex
 }
 
+// DeviceRequest represents a request to activate a device.
 type DeviceRequest struct {
 	UserID   uint
 	DeviceID uint
 	Duration time.Duration
 }
 
+// NewDeviceService initializes a new DeviceService.
 func NewDeviceService() *DeviceService {
 	return &DeviceService{
-		deviceQueue:       make(chan *DeviceRequest, 100), // buffered for flexibility
-		deviceQuota:       1 * time.Hour,
-		quotaResetTime:    time.Now().Add(24 * time.Hour),
-		activeActivations: make(map[uint]context.CancelFunc),
+		deviceQueue:            make(chan *DeviceRequest),
+		deviceQuota:            1 * time.Hour,
+		quotaResetTime:         time.Now().Add(24 * time.Hour),
+		activeActivations:      make(map[uint]context.CancelFunc),
+		acknowledgmentChannels: make(map[uint]chan struct{}),
 	}
 }
 
+// StartActivator launches the device activation loop (only once).
 func (ds *DeviceService) StartActivator() {
 	ds.once.Do(func() {
 		go ds.activatorLoop()
@@ -49,6 +56,9 @@ type QueueFullError struct{}
 var ErrQueueFull = &QueueFullError{}
 var ErrDeviceAlreadyActive = errors.New("device is already active")
 
+func (e *QueueFullError) Error() string { return "queue is full" }
+
+// EnqueueActivation adds a device activation request to the queue.
 func (ds *DeviceService) EnqueueActivation(req *DeviceRequest) error {
 	// Check if device is already being activated
 	ds.activeActivationsMu.Lock()
@@ -69,8 +79,45 @@ func (ds *DeviceService) EnqueueActivation(req *DeviceRequest) error {
 	}
 }
 
-func (e *QueueFullError) Error() string { return "queue is full" }
+// Helper for waiting for device ACK, timeout, or force shutdown.
+// Returns true if ACK received, false otherwise.
+func (ds *DeviceService) waitForAck(ctx context.Context, deviceID uint, ackTimeout time.Duration) bool {
+	acknowledgmentChannel := make(chan struct{})
+	ds.acknowledgmentChannelsMu.Lock()
+	ds.acknowledgmentChannels[deviceID] = acknowledgmentChannel
+	ds.acknowledgmentChannelsMu.Unlock()
+	defer func() {
+		ds.acknowledgmentChannelsMu.Lock()
+		delete(ds.acknowledgmentChannels, deviceID)
+		ds.acknowledgmentChannelsMu.Unlock()
+	}()
 
+	select {
+	case <-acknowledgmentChannel:
+		log.Printf("[ACK] Received ACK for device %d", deviceID)
+		return true
+	case <-time.After(ackTimeout):
+		log.Printf("[ACK] Timeout waiting for ACK from device %d", deviceID)
+		Publish(MQTTTopicDeviceControl, "off", 2, true)
+		SendDevicePushNotificationToAll(
+			deviceID,
+			fmt.Sprintf("This device %d failed to acknowledge. Activation aborted!", deviceID),
+			map[string]string{"device_id": fmt.Sprintf("%d", deviceID)},
+		)
+		return false
+	case <-ctx.Done():
+		log.Printf("[Force] Activation for device %d cancelled by admin during ACK wait", deviceID)
+		Publish(MQTTTopicDeviceControl, "off", 2, true)
+		SendDevicePushNotificationToAll(
+			deviceID,
+			fmt.Sprintf("[Force] Activation for device %d cancelled by admin during ACK wait", deviceID),
+			map[string]string{"device_id": fmt.Sprintf("%d", deviceID)},
+		)
+		return false
+	}
+}
+
+// activatorLoop processes device activation requests from the queue.
 func (ds *DeviceService) activatorLoop() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -90,7 +137,7 @@ func (ds *DeviceService) activatorLoop() {
 			log.Println("[Quota] Daily quota has been reset")
 		}
 
-		// Check if this request exceeds daily quota (using requested duration for check only)
+		// Check if this request exceeds daily quota
 		ds.deviceQuotaMutex.Lock()
 		if req.Duration+ds.totalUsageTime > ds.deviceQuota {
 			ds.deviceQuotaMutex.Unlock()
@@ -100,17 +147,27 @@ func (ds *DeviceService) activatorLoop() {
 		ds.deviceQuotaMutex.Unlock()
 
 		db := database.GetDB()
-
-		// Fetch the device by ID
 		var device models.Device
 		if err := db.Where("id = ?", req.DeviceID).First(&device).Error; err != nil {
 			log.Printf("[DB] Device not found: %d\n", req.DeviceID)
 			continue
 		}
 
-		// Skip if already ON
 		if device.State == "ON" {
 			log.Printf("[State] Device %d already ON. Skipping.\n", req.DeviceID)
+			continue
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		// Publish ON command to device MQTT broker (QoS 2, retained)
+		Publish(MQTTTopicDeviceControl, "on", 2, true)
+
+		// Wait for ACK, timeout, or force shutdown
+		ackTimeout := 10 * time.Second
+		ackReceived := ds.waitForAck(ctx, req.DeviceID, ackTimeout)
+		if !ackReceived {
+			cancel()
 			continue
 		}
 
@@ -123,23 +180,20 @@ func (ds *DeviceService) activatorLoop() {
 			DeviceID:         req.DeviceID,
 			IntendedDuration: intendedDuration,
 			ActiveUntil:      activeUntil,
-			Reason:           "", // set as needed
+			Reason:           "",
 		}
 		if err := db.Create(&session).Error; err != nil {
 			log.Printf("[DB] Failed to create device session for User %d | Device %d: %v\n", req.UserID, req.DeviceID, err)
+			cancel()
 			continue
 		}
 
-		// Publish ON command to device MQTT broker
-		Publish(MQTTTopicDeviceControl, "on", 2, true) // Send ON command
-
-		// Turn ON the device
 		if err := db.Model(&device).Update("state", "ON").Error; err != nil {
 			log.Printf("[DB] Failed to update device state to ON.%d\n", req.DeviceID)
+			cancel()
 			continue
 		}
 
-		// Log ON state change
 		if err := db.Create(&models.DeviceLog{
 			State:     "ON",
 			SessionID: session.ID,
@@ -151,7 +205,6 @@ func (ds *DeviceService) activatorLoop() {
 
 		log.Printf("[State] Device %d will remain ON for %v\n", req.DeviceID, req.Duration)
 
-		// Send push notification
 		SendDevicePushNotificationToAll(
 			req.DeviceID,
 			fmt.Sprintf("This device is now ON for %v minutes.", req.Duration.Minutes()),
@@ -162,16 +215,14 @@ func (ds *DeviceService) activatorLoop() {
 			},
 		)
 
-		ctx, cancel := context.WithCancel(context.Background())
-
-		// Register this activation
+		// Register this activation for force shutdown
 		ds.activeActivationsMu.Lock()
 		ds.activeActivations[req.DeviceID] = cancel
 		ds.activeActivationsMu.Unlock()
 
+		// Wait for duration or force shutdown
 		startTime = time.Now()
 		var shutdownReason string
-
 		select {
 		case <-time.After(req.Duration):
 			shutdownReason = "completed"
@@ -193,16 +244,15 @@ func (ds *DeviceService) activatorLoop() {
 		ds.activeActivationsMu.Unlock()
 
 		// Publish OFF command to device MQTT broker
-		Publish(MQTTTopicDeviceControl, "off", 2, true) // Send OFF command
+		Publish(MQTTTopicDeviceControl, "off", 2, true)
 
-		// Turn OFF the device
 		if err := db.Model(&device).Update("state", "OFF").Error; err != nil {
 			log.Printf("[DB] Failed to turn OFF device %d\n", req.DeviceID)
+			cancel()
 			continue
 		}
 		log.Printf("[State] Device %d turned OFF at %s after %v\n", req.DeviceID, shutdownTime.Format("03:04 PM"), req.Duration)
 
-		// Log OFF state change
 		if err := db.Create(&models.DeviceLog{
 			State:     "OFF",
 			SessionID: session.ID,
@@ -212,17 +262,18 @@ func (ds *DeviceService) activatorLoop() {
 			log.Printf("[Log] OFF state logged for device %d (was ON for %v, reason: %s)\n", req.DeviceID, actualDuration, shutdownReason)
 		}
 
-		// Update DeviceSession with shutdown time and reason
 		if err := db.Model(&session).Updates(map[string]interface{}{
 			"ActiveUntil": shutdownTime.Format(time.RFC3339),
 			"Reason":      shutdownReason,
 		}).Error; err != nil {
 			log.Printf("[DB] Failed to update device session for device %d: %v\n", req.DeviceID, err)
 		}
+
+		cancel()
 	}
 }
 
-// Method for force-shutdown (admin)
+// ForceShutdown cancels an active device activation (admin action).
 func (ds *DeviceService) ForceShutdown(deviceID uint) bool {
 	ds.activeActivationsMu.Lock()
 	cancel, exists := ds.activeActivations[deviceID]
@@ -243,4 +294,17 @@ func (ds *DeviceService) ForceShutdown(deviceID uint) bool {
 		return true
 	}
 	return false
+}
+
+// HandleAcknowledgement is called when an ACK is received from a device.
+func (ds *DeviceService) HandleAcknowledgement(deviceID uint) {
+	ds.acknowledgmentChannelsMu.Lock()
+	acknowledgeChannel, exists := ds.acknowledgmentChannels[deviceID]
+	ds.acknowledgmentChannelsMu.Unlock()
+	if exists {
+		select {
+		case acknowledgeChannel <- struct{}{}:
+		default:
+		}
+	}
 }
