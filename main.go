@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"log"
 
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/musabgulfam/pumplink-backend/config"
 	"github.com/musabgulfam/pumplink-backend/database"
 	"github.com/musabgulfam/pumplink-backend/handlers"
 	"github.com/musabgulfam/pumplink-backend/middleware"
 	"github.com/musabgulfam/pumplink-backend/models"
-	"github.com/musabgulfam/pumplink-backend/services"
 	deviceService "github.com/musabgulfam/pumplink-backend/services"
+	services "github.com/musabgulfam/pumplink-backend/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -61,6 +62,13 @@ func main() {
 	// Initialize and start the device service
 	deviceService := deviceService.NewDeviceService()
 	deviceService.StartActivator()
+
+	// Subscribe to acknowledgment topics
+	services.Subscribe(services.MQTTAckTopic, func(client mqtt.Client, msg mqtt.Message) {
+		// Parse deviceID from topic (e.g., device/123/ack)
+		// TODO: Implement HandleAcknowledgement in services package if needed
+		deviceService.HandleAcknowledgement(1)
+	})
 
 	// Step 5: Initialize the HTTP server using Gin framework
 	r := gin.Default()
