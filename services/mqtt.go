@@ -46,7 +46,7 @@ func Connect(broker string) error { // Connects to the MQTT broker
 }
 
 func Subscribe(topic string, callback mqttlib.MessageHandler) error { // Subscribe to a topic
-	if token := Client.Subscribe(topic, 2, callback); token.Wait() && token.Error() != nil { // Try to subscribe
+	if token := Client.Subscribe(topic, 1, callback); token.Wait() && token.Error() != nil { // Try to subscribe
 		return token.Error() // Return error if fails
 	}
 	return nil // Success
