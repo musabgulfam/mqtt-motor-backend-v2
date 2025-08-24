@@ -17,7 +17,7 @@ func SendPushNotification(token, title, body string, data map[string]string) err
 		Title:    title,
 		Body:     body,
 		Data:     data,
-		Sound:    "default",
+		Sound:    "notification",
 		Priority: expo.DefaultPriority,
 	}
 	_, err := client.Publish(&msg)
