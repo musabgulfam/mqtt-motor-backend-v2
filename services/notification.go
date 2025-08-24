@@ -17,7 +17,7 @@ func SendPushNotification(token, title, body string, data map[string]string) err
 		Title:    title,
 		Body:     body,
 		Data:     data,
-		Sound:    "notification",
+		Sound:    "notification.wav",
 		Priority: expo.DefaultPriority,
 		ChannelID: "default",
 	}
