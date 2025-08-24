@@ -19,6 +19,7 @@ func SendPushNotification(token, title, body string, data map[string]string) err
 		Data:     data,
 		Sound:    "notification",
 		Priority: expo.DefaultPriority,
+		ChannelID: "default",
 	}
 	_, err := client.Publish(&msg)
 	if err != nil {
