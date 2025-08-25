@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/musabgulfam/pumplink-backend/database"
 	"github.com/musabgulfam/pumplink-backend/models"
@@ -13,12 +14,12 @@ func SendPushNotification(token, title, body string, data map[string]string) err
 	client := expo.NewPushClient(nil)
 
 	msg := expo.PushMessage{
-		To:       []expo.ExponentPushToken{expo.ExponentPushToken(token)},
-		Title:    title,
-		Body:     body,
-		Data:     data,
-		Sound:    "notification.wav",
-		Priority: expo.DefaultPriority,
+		To:        []expo.ExponentPushToken{expo.ExponentPushToken(token)},
+		Title:     title,
+		Body:      body,
+		Data:      data,
+		Sound:     "notification.wav",
+		Priority:  expo.DefaultPriority,
 		ChannelID: "default",
 	}
 	_, err := client.Publish(&msg)
@@ -61,6 +62,27 @@ func SendDevicePushNotificationToAll(deviceID uint, body string, data map[string
 		}
 		if err := SendPushNotificationToAll(title, body, data); err != nil {
 			log.Printf("Failed to send notification to all: %v", err)
+		}
+	}()
+}
+
+// New helper to send notification to specific admin/user
+func SendDevicePushNotificationToAdmin(deviceID uint, body string, data map[string]string) {
+	go func() {
+		// Fetch admin token from environment variables
+		token := os.Getenv("EXPO_PUSH_TOKEN")
+
+		var device models.Device
+		if err := database.DB.First(&device, deviceID).Error; err != nil {
+			log.Printf("Failed to fetch device %d: %v", deviceID, err)
+			return
+		}
+		title := device.Name
+		if title == "" {
+			title = fmt.Sprintf("Device %d", deviceID)
+		}
+		if err := SendPushNotification(token, title, body, data); err != nil {
+			log.Printf("Failed to send notification to admin: %v", err)
 		}
 	}()
 }
