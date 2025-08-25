@@ -10,8 +10,7 @@ import (
 	"github.com/musabgulfam/pumplink-backend/handlers"
 	"github.com/musabgulfam/pumplink-backend/middleware"
 	"github.com/musabgulfam/pumplink-backend/models"
-	deviceService "github.com/musabgulfam/pumplink-backend/services"
-	services "github.com/musabgulfam/pumplink-backend/services"
+	"github.com/musabgulfam/pumplink-backend/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -60,7 +59,7 @@ func main() {
 	services.SubscribeToDeviceStatus()
 
 	// Initialize and start the device service
-	deviceService := deviceService.NewDeviceService()
+	deviceService := services.NewDeviceService()
 	deviceService.StartActivator()
 
 	// Subscribe to acknowledgment topics
@@ -77,9 +76,13 @@ func main() {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status":  "ok",
-			"message": "MQTT Motor Backend is running",
+			"message": "PumpLink Backend is running",
 		})
 	})
+
+	// Step 6.1: Initialize the schedule service
+	scheduleService := services.NewScheduleService()
+	scheduleService.StartScheduler(deviceService)
 
 	// Step 7: Define user authentication routes (versioned)
 	api := r.Group("/api/v1")
@@ -109,6 +112,8 @@ func main() {
 			protected.POST("/device/:id/force-shutdown", middleware.RoleMiddleware(models.RoleAdmin), handlers.ForceShutdownHandler(deviceService))
 
 			protected.POST("/register-push-token", handlers.RegisterPushToken)
+
+			protected.POST("/schedule", middleware.RoleMiddleware(models.RoleUser, models.RoleAdmin), handlers.ScheduleHandler(scheduleService))
 		}
 		// Step 9: Start the HTTP server
 		// This begins listening for incoming HTTP requests on the specified port

@@ -58,7 +58,6 @@ func Connect() error {
 	// This is especially useful during development when models change frequently
 	err = DB.AutoMigrate(
 		&models.User{},
-		// &models.DeviceActivationLog{},
 		&models.Device{},
 		&models.DeviceLog{},
 		&models.DeviceSession{},
