@@ -99,18 +99,18 @@ func (ds *DeviceService) waitForAck(ctx context.Context, deviceID uint, ackTimeo
 	case <-time.After(ackTimeout):
 		log.Printf("[ACK] Timeout waiting for ACK from device %d", deviceID)
 		Publish(MQTTTopicDeviceControl, "off", 2, true)
-		SendDevicePushNotificationToAll(
+		SendDevicePushNotificationToAdmin(
 			deviceID,
-			fmt.Sprintf("This device %d failed to acknowledge. Activation aborted!", deviceID),
+			fmt.Sprintf("Device %d failed to acknowledge. Activation aborted!", deviceID),
 			map[string]string{"device_id": fmt.Sprintf("%d", deviceID)},
 		)
 		return false
 	case <-ctx.Done():
 		log.Printf("[Force] Activation for device %d cancelled by admin during ACK wait", deviceID)
 		Publish(MQTTTopicDeviceControl, "off", 2, true)
-		SendDevicePushNotificationToAll(
+		SendDevicePushNotificationToAdmin(
 			deviceID,
-			fmt.Sprintf("[Force] Activation for device %d cancelled by admin during ACK wait", deviceID),
+			fmt.Sprintf("Activation for device %d cancelled by admin during ACK wait", deviceID),
 			map[string]string{"device_id": fmt.Sprintf("%d", deviceID)},
 		)
 		return false
@@ -207,7 +207,7 @@ func (ds *DeviceService) activatorLoop() {
 
 		SendDevicePushNotificationToAll(
 			req.DeviceID,
-			fmt.Sprintf("This device is now ON for %v minutes.", req.Duration.Minutes()),
+			fmt.Sprintf("Device %d is now ON for %v minutes.", req.DeviceID, req.Duration.Minutes()),
 			map[string]string{
 				"device_id": fmt.Sprintf("%d", req.DeviceID),
 				"action":    "on",
@@ -281,15 +281,10 @@ func (ds *DeviceService) ForceShutdown(deviceID uint) bool {
 	if exists {
 		cancel()
 		// Send push notification
-		SendDevicePushNotificationToAll(
+		SendDevicePushNotificationToAdmin(
 			deviceID,
-			fmt.Sprintf(
-				"This device has been force shut down at %s by admin",
-				time.Now().Format("03:04 PM"),
-			),
-			map[string]string{
-				"action": "off",
-			},
+			fmt.Sprintf("Device %d has been force shut down at %s by admin", deviceID, time.Now().Format("03:04 PM")),
+			map[string]string{"action": "off"},
 		)
 		return true
 	}
